@@ -1,0 +1,20 @@
+
+/**
+ * ⚠️ 警告：此文件是根据 iconfont.json 自动生成的，请勿手动修改！
+ * 生成时间: 2025/11/14 10:15:41
+ * Unicode 值类型: 十进制数字
+ */
+
+const iconMap = {
+  "icon-report": 59673,
+  "icon-wechat-moments": 59113,
+  "icon-copy-link": 59086,
+  "icon-wechat": 58981,
+  "icon-scan": 59034,
+  "icon-settings": 59033,
+  "icon-ellipsis-vertical": 58898,
+  "icon-left-arrow": 59453,
+  "icon-bell": 58880
+}
+
+export default iconMap

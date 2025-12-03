@@ -1,0 +1,289 @@
+<template>
+	<view v-if="realShow" :class="tagClass" :style="[tagStyle,customStyle]" ref="tagRef" @click="handleClick"
+		@transitionend="onTransitionend">
+		<slot>
+			<rice-icon v-if="hasStrValue(icon)" :name="icon" :color="iconColor" :size="`${iconSize}px`"
+				:custom-style="{marginRight:'2px'}" />
+			<text :class="textClass" :style="textStyle">{{text}}</text>
+		</slot>
+
+		<!-- #ifndef APP -->
+		<view v-if="closeable" @click.stop="handleClose">
+			<rice-icon name="cross" :color="iconColor" :size="`${iconSize-2}px`" :custom-style="{marginLeft:'4px'}" />
+		</view>
+		<!-- #endif -->
+
+		<!-- #ifdef APP -->
+		<rice-icon v-if="closeable" name="cross" :color="iconColor" :size="`${iconSize-2}px`"
+			:custom-style="{marginLeft:'4px'}" @click="handleClose" />
+		<!-- #endif -->
+
+
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Tag 标签
+	 * @property {String} type 类型 
+	 * @value primary 主要的
+	 * @value success 成功的
+	 * @value warning 警告
+	 * @value error 错误
+	 * @property {String} size 尺寸  'large' | 'small' 
+	 * @value large 大尺寸
+	 * @value small 小尺寸
+	 * @property {String} color 背景颜色
+	 * @property {String} text 文字
+	 * @property {String} icon 图标名称，等同于Icon的name值
+	 * @property {String} textColor 文字颜色
+	 * @property {String|Number} textSize 文字大小
+	 * @property {Boolean} show 是否显示
+	 * @property {Boolean} plain 是否为朴素按钮
+	 * @property {Boolean} plainFill 是否为带背景颜色的朴素按钮
+	 * @property {Boolean} round 是否圆角
+	 * @property {Boolean} mark 是否为标记样式（半圆角）
+	 * @property {Boolean} closeable 是否可关闭
+	 * @property {Object} customStyle 自定义样式
+	 */
+
+	import { useNamespace } from '../../libs/use';
+	import { isDark } from "../../libs/store";
+	import { Coloruts } from "../../libs/plugin";
+	import { addUnit, hasStrValue, splitCssProperty, isGradientColor, isThemeColor } from '../../libs/utils';
+	import { TagProps, TagType } from './type.uts';
+
+	defineOptions({
+		name: 'rice-tag'
+	})
+
+	const ns = useNamespace('tag')
+	const emit = defineEmits<{
+		click : [],
+		close : [],
+	}>()
+
+	const props = withDefaults(defineProps<TagProps>(), {
+		plainFill: false,
+		plain: false,
+		round: true,
+		mark: false,
+		closeable: false,
+		show: true,
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const isPlain = computed(() => props.plain || props.plainFill)
+
+	const realShow = ref(props.show)
+
+
+	const handleClick = () => {
+		emit('click')
+	}
+
+	const handleClose = (e : UniPointerEvent) => {
+		e.stopPropagation();
+		emit('close')
+	}
+
+	const onTransitionend = () => {
+		realShow.value = props.show
+	}
+
+
+	watch(() : boolean => props.show, () => {
+		if (props.show) realShow.value = true
+	})
+
+	const getTextColor = () : string => {
+		if (props.textColor != null) return props.textColor!
+		if (hasStrValue(props.color)) {
+			return (isPlain.value && !isGradientColor(props.color!))
+				? props.color!
+				: '#f5f5f5'
+		}
+		return ""
+
+	}
+
+	const iconSize = computed(() => {
+		if (props.size == 'large') return 18;
+		if (props.size == 'small') return 14
+		return 16
+	})
+
+	const themeColor = ref("")
+	const iconColor = computed<string>(() => {
+		const textColor = getTextColor()
+		if (textColor != "") return textColor
+
+		// #ifdef APP
+		const baseColor = isDark.value ? '#f5f5f5' : '#323233'
+		if (isPlain.value) return themeColor.value == "" ? baseColor : themeColor.value
+		return isThemeColor(props.type) ? '#f5f5f5' : baseColor
+		// #endif
+
+		// #ifndef APP
+		return "inherit"
+		// #endif
+	})
+
+
+	function darken(color : Coloruts, amount = 20) {
+		return color.mix('#141414', amount).toHexString()
+	}
+
+	const tagStyle = computed(() => {
+		const css = new Map<string, any>()
+		if (hasStrValue(props.color)) {
+			const color = props.color!
+			if (isGradientColor(color)) {
+				css.set('background', color)
+				css.set('border-style', 'none')
+			} else {
+				const colorUts = new Coloruts(color)
+				css.set('border-color', color)
+				if (!isPlain.value) {
+					css.set('background', color)
+				} else if (props.plainFill) {
+					css.set('background', isDark.value ? darken(colorUts, 90) : colorUts.tint(90).toHexString())
+				}
+			}
+		}
+
+		// #ifndef APP
+		const textColor = getTextColor()
+		if (textColor != "") css.set('color', textColor)
+		// #endif
+
+		css.set('opacity', props.show ? 1 : 0)
+
+		return css
+	})
+
+	const tagClass = computed(() => {
+		const basic = [
+			ns.b(""),
+			ns.theme(),
+			ns.is('round', props.round),
+			ns.is('mark', props.mark),
+			ns.m(props.size),
+		]
+		if (isThemeColor(props.type)) {
+			const theme = ns.m(props.plainFill ? `${props.type}--plain-fill` : props.type!)
+			basic.push(theme)
+		}
+		basic.push(ns.is("plain", props.plain))
+		return basic
+	})
+
+
+	const textStyle = computed(() => {
+		const css = new Map<string, string>()
+		const textColor = getTextColor()
+		if (textColor != "") css.set('color', textColor)
+		if (props.textSize != null) css.set('font-size', addUnit(props.textSize!))
+		return css
+	})
+
+	const textClass = computed(() => {
+		const basic = [ns.e("text")]
+		if (isThemeColor(props.type)) {
+			const theme = ns.m(isPlain.value ? `${props.type}--plain__text` : `${props.type!}__text`)
+			basic.push(theme)
+		}
+		if (props.size != null) {
+			basic.push(ns.m(`${props.size}__text`))
+		}
+		return basic
+	})
+
+	// #ifdef APP
+	const tagRef = shallowRef<UniElement | null>(null)
+	const getCssVar = async () => {
+		await nextTick()
+		themeColor.value = tagRef.value?.style.getPropertyValue(`--rice-${props.type}-color`) ?? ""
+	}
+
+
+	watch([() : TagType | null => props.type, () : boolean => isDark.value], () => {
+		getCssVar()
+	})
+
+	onMounted(() => {
+		getCssVar()
+	})
+	// #endif
+</script>
+
+<style scoped lang="scss">
+	@import "./style.scss";
+
+	.rice-tag {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		padding: 0 10px;
+		height: 26px;
+		box-sizing: border-box;
+		transition-property: opacity;
+		transition-duration: .3s;
+		opacity: 1;
+		border: 1px solid var(--rice-tag-default-border);
+		/* #ifndef APP */
+		color: var(--rice-text-color);
+		width: fit-content;
+		/* #endif */
+		
+		// #ifdef WEB
+		cursor: pointer;
+		//#endif
+
+		&__text {
+			/* #ifdef APP */
+			color: var(--rice-text-color);
+			/* #endif */
+			font-size: var(--rice-font-size-sm);
+		}
+
+		&--round {
+			border-radius: 4px;
+		}
+
+		&--mark {
+			border-radius: 0 100px 100px 0;
+		}
+
+
+
+		@include tagTheme();
+		@include tagSize();
+
+		&--plain {
+			background: transparent;
+
+			/* #ifndef APP */
+			&.rice-tag--primary {
+				color: var(--rice-primary-color);
+			}
+
+			&.rice-tag--success {
+				color: var(--rice-success-color);
+			}
+
+			&.rice-tag--warning {
+				color: var(--rice-warning-color);
+			}
+
+			&.rice-tag--error {
+				color: var(--rice-error-color);
+			}
+
+
+
+			/* #endif */
+		}
+
+	}
+</style>

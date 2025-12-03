@@ -1,0 +1,21 @@
+<script setup lang="uts">
+	
+</script>
+
+<template>
+	<!-- 状态栏占位 -->
+	<view class="status-bar"></view>
+	<common-back-navbar title="开发者资讯" class="uni-padding-wrap"></common-back-navbar>
+
+	<scroll-view style="flex:1">
+		<view class="uni-padding-wrap">
+			开始
+			<view style="height:800px"></view>
+			到底了
+		</view>
+	</scroll-view>
+</template>
+
+<style>
+
+</style>

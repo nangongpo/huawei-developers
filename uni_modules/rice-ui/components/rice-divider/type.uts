@@ -1,0 +1,12 @@
+export type DividerProps = {
+	dashed ?: boolean,
+	hairline ?: boolean,
+	// vertical ?: boolean, //TD:是否垂直排列
+	width ?: string | number,
+	lineColor ?: string,
+	text ?: string | number,
+	textPosition ?: 'left' | 'right' | 'center',
+	textColor ?: string,
+	textSize ?: string | number,
+	customStyle ?: UTSJSONObject,
+}

@@ -1,0 +1,28 @@
+import type { Ref } from "vue"
+
+export type GridProps = {
+	columnNum ?: string | number,
+	align ?: 'left' | 'right' | 'center',
+	textColor ?: string,
+	textSize ?: string | number,
+	iconColor ?: string,
+	iconSize ?: string | number,
+	border ?: boolean,
+	// center ?: boolean,//todo
+	clickable ?: boolean,
+	vertical ?: boolean,
+	customStyle ?: UTSJSONObject,
+}
+
+export type GridProvice = {
+	columnNum : Ref<number>,
+	textColor : Ref<string | null>,
+	textSize : Ref<string | number | null>,
+	iconColor : Ref<string | null>,
+	iconSize : Ref<string | number | null>,
+	// center : Ref<boolean>,
+	border : Ref<boolean>,
+	clickable : Ref<boolean>,
+	vertical : Ref<boolean>,
+	childrenList : Ref<ComponentInternalInstance[]>,
+}

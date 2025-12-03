@@ -1,0 +1,71 @@
+import { config } from "../store"
+
+type SplitCssPropertyResult = {
+	textCssProperty : UTSJSONObject,
+	rectCssProperty : UTSJSONObject,
+}
+
+/**
+ * 添加单位
+ */
+export const addUnit = (value : number | string) => {
+	const isNumeric = typeof value == 'number' || /^\d+(\.\d+)?$/.test(value)
+	return isNumeric ? `${value}${config.unit}` : value.toString()
+}
+
+/**
+ * 分离文本的属性值和元素的属性值
+ * uniappx样式不继承且非text组件不支持color,font-size等文本特有的属性
+ */
+
+export const splitCssProperty = (css ?: UTSJSONObject) => {
+	const textCssProperty = {}
+	const rectCssProperty = {}
+	if (css != null) {
+		const textProperties = [
+			'color',
+			'font-family',
+			'fontFamily',
+			'font-size',
+			'fontSize',
+			'font-weight',
+			'fontWeight',
+			'font-style',
+			'fontStyle',
+			'text-align',
+			'textAlign',
+			'text-decoration',
+			'textDecoration',
+			'line-height',
+			'lineHeight',
+			'letter-spacing',
+			'letterSpacing',
+			'text-overflow',
+			'textOverflow',
+			'white-space',
+			'whiteSpace',
+			'lines',
+		];
+
+		for (let key in css) {
+			if (textProperties.includes(key)) {
+				textCssProperty[key] = css[key]
+			} else {
+				rectCssProperty[key] = css[key]
+			}
+		}
+
+	}
+
+
+	return {
+		textCssProperty,
+		rectCssProperty
+	} as SplitCssPropertyResult
+}
+
+
+export const str2num = (value : string | number) => {
+	if (typeof value == 'number') return value
+	return parseFloat(value)
+}

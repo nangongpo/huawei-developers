@@ -1,0 +1,63 @@
+<script setup lang="uts">
+	const props= defineProps<{
+		isActive: boolean // 激活页面
+	}>()
+	const refresherTriggered = ref(false)
+	const pullingDistance = ref(0)
+	const resetting = ref(false)
+	// const triggered = ref(false)
+	
+	const state = computed(() => {
+		if (resetting.value) {
+			return 3
+		}
+		if (refresherTriggered.value) {
+			return 2
+		}
+		if (pullingDistance.value > 45) {
+			return 1
+		} else {
+			return 0
+		}
+	})
+	
+	function onRefresherpulling(e: UniRefresherEvent) {
+		pullingDistance.value = e.detail.dy
+		// triggered.value = true
+	}
+	
+	function onRefresherrefresh() {
+		refresherTriggered.value = true
+		setTimeout(() => {
+			refresherTriggered.value = false
+			resetting.value = true
+		}, 1500)
+	}
+	
+	function onRefreshrestore() {
+		pullingDistance.value = 0
+		resetting.value = false
+	}
+	
+	onMounted(() => {
+		console.log('event active', props.isActive)
+	})
+</script>
+
+<template>
+	<scroll-view :show-scrollbar="false" :refresher-enabled="true" :refresher-triggered="refresherTriggered"
+      refresher-default-style="none" @refresherpulling="onRefresherpulling" @refresherrefresh="onRefresherrefresh"
+      @refresherrestore="onRefreshrestore" :refresher-max-drag-distance="200" style="flex:1">
+		<view class="uni-padding-wrap">
+			活动
+			<view style="height: 900px"></view>
+			到底了
+		</view>
+		<!-- 自定义下拉刷新元素 -->
+		<refresh-box slot="refresher" :state="state"></refresh-box>
+	</scroll-view>
+</template>
+
+<style>
+		
+</style>

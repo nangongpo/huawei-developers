@@ -1,0 +1,219 @@
+<template>
+	<view :class="progressClass" :style="[customStyle]">
+		<view :class="wrapperClass" :style="[wrapperStyle,radiusStyle]" ref="wrapperRef">
+			<view class="rice-progress__bar" :style="[barStyle,radiusStyle]">
+				<slot v-if="textPosition=='inside'">
+					<text v-if="showText" :class="textClass" :style="textStyle">{{formatText}}</text>
+				</slot>
+			</view>
+
+		</view>
+		<slot v-if="textPosition=='right'">
+			<text v-if="showText" class="rice-progress__text" :style="textStyle">{{formatText}}</text>
+		</slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Progress 进度条
+	 * @property {Number|String} percentage 进度百分比 0-100
+	 * @property {Number|String} strokeWidth 进度条宽度
+	 * @property {Boolean} showText 是否显示文字，默认true
+	 * @property {String} textColor 文字颜色
+	 * @property {Number|String} textSize 文字大小
+	 * @property {String} textPosition 文字位置
+	 * @value right 右侧
+	 * @value inside 进度条里面
+	 * @property {Function} format 自定义文字格式
+	 * @property {String|Array|Function} color 激活的进度条颜色
+	 * @property {String} inactiveColor 未激活的进度条颜色
+	 * @property {String|Number} radius 圆角大小
+	 * @property {Object} customStyle 自定义样式
+	 */
+	import { useNamespace } from '../../libs/use';
+	import { addUnit, clamp, toNum, isGradientColor, hasStrValue } from "../../libs/utils"
+	import { ProgressProps, ProgressColors } from './type.uts';
+
+	defineOptions({
+		name: 'rice-progress'
+	})
+
+	const ns = useNamespace('progress')
+	const slots = useSlots()
+
+	const props = withDefaults(defineProps<ProgressProps>(), {
+		percentage: 0,
+		showText: true,
+		textPosition: 'right',
+		format: (percentage : number) : string => `${percentage}%`,
+		customStyle: () => ({})
+	})
+
+	const percentageNum = computed<number>(() => clamp(toNum(props.percentage), 0, 100))
+
+	const labelPostion = computed<string>(() => {
+		if (slots['default'] != null) {
+			return props.textPosition
+		}
+		return props.showText ? props.textPosition : 'none'
+	})
+
+	const showLabel = computed(() => slots['default'] != null || labelPostion.value != 'none')
+
+	// #ifdef APP
+	const wrapperWidth = ref(0)
+	const wrapperRef = shallowRef<UniElement | null>(null)
+	const obServer = ref<UniResizeObserver | null>(null)
+
+	const resizeObserver = async () => {
+		await nextTick()
+		if (wrapperRef.value == null) return
+		const rect = await wrapperRef.value!.getBoundingClientRectAsync()!
+		wrapperWidth.value = rect.width
+
+		obServer.value = new UniResizeObserver((entries : UniResizeObserverEntry[]) => {
+			const el = entries.find(v => v.target == wrapperRef.value)
+			if (el != null) {
+				wrapperWidth.value = Math.ceil(el.contentRect.width)
+			}
+		})
+
+		obServer.value!.observe(wrapperRef.value)
+	}
+	// #endif
+
+	const formatText = computed(() => {
+		if (typeof props.format == 'function') {
+			return props.format!(toNum(props.percentage))
+		}
+		return `${props.percentage}%`
+	})
+
+
+	const wrapperStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (hasStrValue(props.strokeWidth)) css.set('height', addUnit(props.strokeWidth!))
+		if (hasStrValue(props.inactiveColor)) css.set('background', props.inactiveColor!)
+		return css
+	})
+
+	const barStyle = computed(() => {
+		const css = new Map<string, string>()
+		// #ifndef APP
+		css.set('width', `${props.percentage}%`)
+		// #endif
+
+		// #ifdef APP
+		//App端 transition不支持结束属性值为百分比，需要转为px
+		const num = clamp(toNum(props.percentage), 0, 100)
+		const percent = num / 100
+		css.set('width', `${wrapperWidth.value * percent}px`)
+		// #endif
+
+		const color = props.color ?? ""
+		if (color != "") {
+			isGradientColor(color)
+				? css.set('background', color)
+				: css.set('background-color', color)
+		}
+
+		return css
+	})
+
+	const radiusStyle = computed(() => {
+		const css = new Map<string, string>()
+		const radius = hasStrValue(props.radius)
+			? addUnit(props.radius!)
+			: '100px'
+		css.set('border-radius', radius)
+		return css
+	})
+
+
+	const progressClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+		]
+	})
+
+	const wrapperClass = computed(() => {
+		const basic = [ns.e("wrapper")]
+		if (labelPostion.value != 'none') {
+			basic.push(ns.m(labelPostion.value))
+		}
+		return basic
+
+	})
+
+	const textClass = computed(() => {
+		const basic = [ns.e("text")]
+		if (labelPostion.value != 'none') {
+			basic.push(ns.e('text--inside'))
+
+		}
+		return basic
+	})
+
+	const textStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (hasStrValue(props.textColor)) css.set('color', props.textColor!)
+		if (hasStrValue(props.textSize)) css.set('font-size', addUnit(props.textSize!))
+		return css
+	})
+
+
+	// #ifdef APP
+
+	onMounted(() => {
+		resizeObserver()
+	})
+
+	onUnmounted(() => {
+		if (wrapperRef.value != null) {
+			obServer.value?.unobserve(wrapperRef.value!)
+		}
+	})
+	// #endif
+</script>
+
+<style scoped lang="scss">
+	.rice-progress {
+		flex-direction: row;
+		align-items: center;
+
+		&__wrapper {
+			flex: 1;
+			height: 6px;
+			background-color: var(--rice-progress-background);
+		}
+
+		&__bar {
+			flex-direction: row;
+			justify-content: flex-end;
+			align-items: center;
+			height: 100%;
+			background-color: var(--rice-primary-color);
+			transition: all .2s ease;
+			width: 0;
+		}
+
+		&__text {
+			color: var(--rice-text-color-2);
+			font-size: var(--rice-font-size-sm);
+			margin-left: 8px;
+			min-width: 40px;
+
+			&--inside {
+				margin-right: 8px;
+				color: #f5f5f5;
+				min-width: 0;
+			}
+		}
+
+		&--inside {
+			height: 20px;
+		}
+	}
+</style>

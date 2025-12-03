@@ -1,0 +1,95 @@
+<script setup lang="uts">
+	import { Props } from './type.uts'
+	import iconMap from '@/static/iconfont/icon-map.uts'
+	
+	const props = withDefaults(defineProps<Props>(), {
+		size: '16px',
+		dot: false,
+		hoverClass: 'icon-hover-bg',
+		iconPrefix: 'icon-'
+	})
+
+	// const props = defineProps({
+	// 	name: {
+	// 		type: String,
+	// 		required: true
+	// 	},
+	// 	size: {
+	// 		type: String,
+	// 		default: '16px'
+	// 	},
+	// 	dot: {
+	// 		type: Boolean,
+	// 		default: false
+	// 	},
+	// 	url: String,     // 跳转链接，有值时显示按压效果
+	// 	iconClass: String,
+	// 	hoverClass: {    // 按压样式, 取消样式传”none“
+	// 		type: String,
+	// 		default: 'icon-hover-bg'
+	// 	},
+	// 	iconPrefix: {
+	// 		type: String,
+	// 		default: 'icon-'
+	// 	},
+	// })
+	
+	const iconComponentStyle = computed(() => {
+		const size = `${parseFloat(props.size) + 8}px`
+		return {
+			width: size,
+			height: size,
+			borderRadius: size
+		}
+	})
+
+	function handleTap() {
+		if (props.url == null) return
+
+		uni.navigateTo({
+			url: props.url
+		})
+	}
+	
+	// 返回由指定的 UTF-16 码元序列创建的字符串
+	function getIconUnicode(name: string): string {
+		const key: string = props.iconPrefix + name
+		const code = iconMap.getNumber(key)
+		return code != null ? String.fromCharCode(code) : ''
+	}
+</script>
+
+<template>
+	<view
+		class="iconfont-component"
+		:hover-class="hoverClass"
+		:style="iconComponentStyle"
+		@tap="handleTap">
+		<text class="iconfont" :class="iconClass" :style="{ 'font-size': size }">
+			{{ getIconUnicode(name) }}
+		</text>
+		<text v-show="dot" class="iconfont-component__dot"></text>
+	</view>
+</template>
+
+<style lang="scss" scoped>
+	.iconfont-component {
+		position: relative;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		/* #ifdef WEB */
+		cursor: pointer;
+		/* #endif */
+	}
+
+	.iconfont-component__dot {
+		position: absolute;
+		top: 6px;
+		right: 4px;
+		width: 6px;
+		height: 6px;
+		border-radius: 6px;
+		background-color: $uni-color-error;
+	}
+</style>

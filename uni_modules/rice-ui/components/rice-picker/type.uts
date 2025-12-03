@@ -1,0 +1,45 @@
+
+
+export type PickerOption = {
+	text : string | number,
+	value : string | number,
+	disabled ?: boolean,
+	children ?: PickerOption[],
+	extend ?: UTSJSONObject
+}
+
+export type PickerColumnType = 'multiple' | 'cascade' | 'default'
+
+export type PickerModelValue = string | number | null
+
+export type PickerEvent = {
+	selectedValues : PickerModelValue[],
+	selectedOptions : PickerOption[],
+	selectedIndex : number[],
+}
+
+export type PickerOptionDefault = PickerOption[]
+
+export type PickerOptionMultiple = PickerOption[][]
+
+export type PickerOptions = PickerOptionDefault | PickerOptionMultiple
+
+export type PickerProps = {
+	columns ?:PickerOption[][],
+	toolbarPosition ?: 'top' | 'bottom' | 'none',
+	title ?: string,
+	confirmButtonText ?: string,
+	cancelButtonText ?: string,
+	fontSize ?: string | number,
+	optionHeight ?: string | number,
+	visibleOptionNum ?: number,
+	closeOnClickOverlay ?: boolean,
+	closeOnClickConfirm ?: boolean,
+	closeOnClickCancel ?: boolean,
+	loading ?: boolean,
+	safeAreaInsetBottom ?: boolean,
+	usePopup ?: boolean,
+	immediateChange ?: boolean,
+	zIndex ?: number,
+	emptyText ?: string,
+}

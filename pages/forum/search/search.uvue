@@ -1,0 +1,206 @@
+<script setup lang="uts">
+	import { PostItem, ResultItem } from './type.uts'
+	import { searchResultData, hotSearchRecordData, postListData } from './mock.uts'
+
+	const focus = ref(false)
+	const inputRef = ref<UniElement | null>(null)
+	const inputContent = ref('')
+	const searchRecord = shallowRef<string[]>([])
+	const hotSearchRecord = shallowRef<string[]>([])
+	const postList = shallowRef<PostItem[]>([])
+	const loading = ref(false)
+	const searchResult = shallowRef<ResultItem[]>([])
+	const showResult = ref(false)
+	
+	function navigateBack() {
+		uni.navigateBack()
+	}
+	
+	function focusInput() {
+		inputRef.value?.focus()
+	}
+	
+	function blurInput() {
+		inputRef.value?.blur()
+	}
+	
+	function clearInput() {
+		inputContent.value = ''
+		showResult.value = false
+		searchResult.value = []
+		focusInput()
+	}
+
+	function handleSearch(keyword?: string) {
+		if (keyword == null) return
+		console.log(keyword)
+		loading.value = true
+		showResult.value = true
+		blurInput()
+		setTimeout(() => {
+			searchResult.value = searchResultData
+			loading.value = false
+		}, 1000)
+	}
+	
+	function setInputContent(keyword: string) {
+		inputContent.value = keyword
+		handleSearch(keyword)
+	}
+	
+	function handleTouchend() {
+		if (showResult.value) return
+		focusInput()
+	}
+	
+	onMounted(() => {
+		focus.value = true
+		// mock数据
+		hotSearchRecord.value = hotSearchRecordData
+		postList.value = postListData
+	})
+</script>
+
+<template>
+	<view class="flex-1" @touchend="handleTouchend">
+		<!-- 状态栏占位 -->
+		<view class="status-bar"></view>
+		<view class="forum-search-header uni-padding-wrap">
+			<view class="search-box uni-common-mr">
+				<uni-iconfont name="search" class="search-icon text-placeholder" />
+				<input ref="inputRef" v-model="inputContent" :focus="focus" type="text" placeholder="搜索你感兴趣的内容" class="search-input" />
+				<uni-iconfont name="close" size="18px" class="clear-icon text-placeholder cursor-pointer" @click.stop="clearInput" />
+			</view>
+			<text class="text-primary font-bold cursor-pointer" @click.stop="navigateBack">取消</text>
+		</view>
+		<!-- <rice-divider :custom-style="{ margin: 0 }" /> -->
+		<scroll-view v-show="!showResult" class="flex-1 uni-padding-wrap">
+			<!-- 搜索历史 -->
+			<view v-if="searchRecord.length" class="my-12px">
+				<text class="text-2xl font-bold height-32px">搜索历史</text>
+				<view class="flex-row flex-wrap">
+					<text
+						v-for="keyword in searchRecord"
+						:key="keyword"
+						class="height-36px text-base mr-16px"
+						@click.stop="setInputContent(keyword)">
+						{{ keyword }}
+					</text>
+				</view>
+			</view>
+
+			<view v-if="hotSearchRecord.length" class="my-12px">
+				<text class="text-2xl font-bold height-36px">热门搜索</text>
+				<view class="flex-row flex-wrap">
+					<text
+						v-for="keyword in hotSearchRecord"
+						:key="keyword"
+						class="height-36px text-base mr-12px"
+						@click.stop="setInputContent(keyword)">
+						{{ keyword }}
+					</text>
+				</view>
+			</view>
+
+			<view class="my-12px">
+				<text class="text-2xl font-bold height-36px">热门帖子</text>
+				<view class="flex-row flex-wrap">
+				</view>
+			</view>
+		</scroll-view>
+		<scroll-view v-show="showResult" class="flex-1 uni-padding-wrap">
+			<view v-if="loading" class="flex-1 flex justify-center items-center">
+				<rice-loading mode="semicircle" />
+			</view>
+			<view v-else class="search-result-wrapper flex-1">
+				<view v-for="item in searchResult" :key="item.id">
+					<view class="mb-12px">
+						<text class="font-bold">{{ item.title }}</text>
+					</view>
+					<view class="mb-12px">
+						<text class="text-base">{{ item.content }}</text>
+					</view>
+					<view class="flex-row mb-12px">
+						<text v-for="tag in item.tag.split(',')" :key="tag" class="tag">{{ tag }}</text>
+					</view>
+					<view class="flex-row items-center">
+						<text class="text-sm text-grey mr-6px">{{ item.author }}</text>
+						<text class="vertical-divider mr-6px"></text>
+						<text class="text-sm text-grey mr-6px">{{ item.visits }}查看</text>
+						<text class="text-sm text-grey mr-6px">{{ item.likes }}点赞</text>
+						<text class="text-sm text-grey">{{ item.comments }}回复</text>
+					</view>
+					<view class="horizontal-divider"></view>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<style lang="scss" scoped>
+	$search-box-height: 36px;
+	
+	.height-36px {
+		height: 36px;
+		line-height: 36px;
+	}
+	
+	.forum-search-header {
+		height: $uni-navbar-height;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.search-box {
+		position: relative;
+		color: $uni-text-color-placeholder;
+		background: $uni-bg-color-grey;
+		height: $search-box-height;
+		border-radius: 18px;
+		box-sizing: border-box;
+		flex: 1;
+	}
+
+	.search-box .search-input {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		padding: 0 $search-box-height;
+	}
+
+	.search-box .search-icon {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		height: $search-box-height;
+		line-height: $search-box-height;
+		margin-left: 14px;
+	}
+
+	.search-box .clear-icon {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		height: $search-box-height;
+		line-height: $search-box-height;
+		margin-right: 14px;
+	}
+	.search-result-wrapper {
+		flex: 1;
+		margin: 20px 0;
+	}
+	
+	.tag {
+		font-size: $uni-font-size-sm;
+		color: $uni-text-color-grey;
+		background-color: $uni-bg-color-grey;
+		padding: 0 6px;
+		border-radius: 4px;
+		margin-right: 6px;
+	}
+</style>

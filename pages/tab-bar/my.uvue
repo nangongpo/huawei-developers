@@ -1,0 +1,21 @@
+<template>
+	<!-- 状态栏占位 -->
+	<view class="status-bar"></view>
+	<!-- #ifdef APP -->
+	<scroll-view style="flex:1">
+	<!-- #endif -->
+		<view class="uni-padding-wrap">
+			我的
+		</view>
+	<!-- #ifdef APP -->
+	</scroll-view>
+	<!-- #endif -->
+</template>
+
+<script setup>
+		
+</script>
+
+<style>
+		
+</style>

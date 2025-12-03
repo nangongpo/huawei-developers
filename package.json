@@ -1,0 +1,10 @@
+{
+	"id": "hello-uniapp-x-",
+	"name": "hello-uniapp-x-",
+	"displayName": "hello-uniapp-x",
+	"version": "1.0.0",
+	"description": "",
+	"scripts": {
+		"iconfont": "node static/iconfont/generate-icon-map.js"
+	}
+}

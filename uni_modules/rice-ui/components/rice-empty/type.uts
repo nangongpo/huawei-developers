@@ -1,0 +1,10 @@
+export type EmptyProps = {
+	image ?: string,
+	width ?: string | number,
+	height ?: string | number,
+	text ?: string,
+	textColor ?: string,
+	textSize ?: string | number,
+	marginTop ?: string | number,
+	customStyle ?: UTSJSONObject,
+}

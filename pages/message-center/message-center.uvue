@@ -1,0 +1,36 @@
+<script setup>
+	function goBack() {
+		uni.navigateBack()
+	}
+</script>
+
+<template>
+	<!-- 状态栏占位 -->
+	<view class="status-bar"></view>
+	<common-back-navbar title="消息中心" class="uni-padding-wrap"></common-back-navbar>
+	<view class="uni-padding-wrap">
+		<!-- tabs 我的消息 系统消息 互动中心 -->
+		<view></view>
+		<!-- 分类 -->
+		<view></view>
+	</view>
+
+	<scroll-view style="flex:1;background:#fff">
+		开始
+		<view style="height:800px"></view>
+		到底了
+	</scroll-view>
+</template>
+
+<style lang="scss" scoped>
+	.navbar {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 1;
+		height: $uni-navbar-height;
+	}
+	.navbar__text {
+		font-size: $uni-font-size-xl;
+	}
+</style>

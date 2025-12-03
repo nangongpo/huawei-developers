@@ -1,0 +1,89 @@
+import { PickerOption, PickerColumnType, PickerModelValue } from "./type.uts"
+import { isSameValue } from "../../libs/utils"
+
+
+/**
+ * 主要是针对Android，Java中数组或集合越界会报异常，这个函数的作用是数组越界就返回null
+ */
+export const getColumnsByValue = (values : PickerModelValue[], index : number) : PickerModelValue => {
+	if (index < 0 || index >= values.length) return null
+	return values[index]
+}
+
+/**
+ * 当前选中的值是在在options中
+ */
+export const isOptionExist = (options : PickerOption[], value : PickerModelValue) => {
+	return value != null && options.find(v => isSameValue(v.value, value)) != null
+}
+
+/**
+ * 根据索引查找对应的option
+ */
+export const getOptionByIndex = (options : PickerOption[], index : number) => {
+	index = Math.max(index, 0)
+	return index >= options.length ? null : options[index]
+}
+
+/**
+ * 查找第一个disabled不为 true 的option
+ */
+export const getFirstEnabledOption = (options : PickerOption[]) => {
+	return options.find(v => v.disabled != true) ?? getOptionByIndex(options, 0)
+}
+
+/**
+ * 根据value值匹配options
+ */
+export const findOptionByValue = (options : PickerOption[], value ?: string | number) => {
+	let index = options.findIndex(v => isSameValue(v.value, value))
+	return getOptionByIndex(options, index)
+}
+
+/**
+ * 格式化联级的数据
+ */
+
+export const formatCascadeColumns = (columns : PickerOption[][], selectedValues : PickerModelValue[]) : PickerOption[][] => {
+	const formatted = [] as PickerOption[][]
+	let current : PickerOption | null = {
+		text: '',
+		value: '',
+		children: columns[0]
+	} as PickerOption
+	let columnIndex = 0;
+	const values = selectedValues.slice(0)
+
+	while (current != null && Array.isArray(current.children)) {
+		const options = current.children as PickerOption[]
+
+		const value = getColumnsByValue(values, columnIndex)
+		current = value == null ? null : findOptionByValue(options, value)
+		if (current == null && options.length > 0) {
+			const firstValue = getFirstEnabledOption(options)!.value
+			current = findOptionByValue(options, firstValue)
+		}
+		columnIndex++
+		formatted.push(options)
+	}
+	return formatted
+
+}
+
+/**
+ * 获取当前columns的类型
+ * multiple示例 : [ []  , [] ] 
+ * cascade示例 : [ [{children:[]}]] 
+ * default示例 : [ [{}] ]   
+ */
+
+
+export const getColumnsType = (columns : PickerOption[][]) : PickerColumnType => {
+
+	if (columns.length > 1) return 'multiple'
+	const firstColumn = columns.length > 0 ? columns[0] : null //示例
+	if (firstColumn != null) {
+		if (Array.isArray(firstColumn![0].children)) return 'cascade'
+	}
+	return 'default'
+}

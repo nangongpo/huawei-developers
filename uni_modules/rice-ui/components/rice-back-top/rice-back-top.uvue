@@ -1,0 +1,267 @@
+<template>
+	<view :class="backTopCss" :style="[backTopStyle,customStyle]" ref="backTopRef" @click="backToTop">
+		<slot>
+			<rice-icon v-if="hasStrValue(icon)" :name="icon" :size="_iconSize" :color="_textColor" bold />
+			<text v-if="hasStrValue(text)" class="rice-back-top__text"
+				:class="{'rice-back-top--half-round__text':mode=='half-round'}" :style="textStyle">{{text}}</text>
+		</slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description BackTop
+	 * @property {Number} scrollTop 页面的滚动距离，通过onPageScroll生命周期获取，仅支持小程序
+	 * @property {Number} offset 滚动条滑动多少距离时显示组件，默认400px
+	 * @property {String} mode 样式类型
+	 * @value round 圆形（默认值）
+	 * @value half-round 半圆
+	 * @property {String} parentId scroll-view 或 list 组件的 id
+	 * @property {String|Number} right 距离页面右侧的距离，默认 20px
+	 * @property {String|Number} bottom 距离页面底部的距离，组件内部会自动避开底部tabbar和安全区域，默认 100px
+	 * @property {Number} duration 滚动到顶部所需的时间，单位ms，默认100ms
+	 * @property {String} icon 按钮内部的图标，设置为空字符串就不显示图标，默认值back-top
+	 * @property {String|Number} iconSize 图标的大小
+	 * @property {String} textColor 图标/文字的颜色
+	 * @property {String} text 按钮内部的文字,优先级低于icon，图标和文字同时只能显示一个(使用自定义插槽除外)
+	 * @property {String} textSize 按钮内部文字的大小，默认13px
+	 * @property {String|Number} width 宽度，默认45px
+	 * @property {String|Number} height 高度，默认45px
+	 * @property {String|Number} radius 圆角值，默认和width一致
+	 * @property {Boolean} zoom 是否启用缩放动画
+	 * @property {String} bgColor 按钮背景颜色
+	 * @property {Number} zIndex z-index的值,默认998
+	 * @property {Object} customStyle 自定义按钮样式
+	 */
+	import { useNamespace } from "../../libs/use"
+	import { addUnit, hasStrValue } from "../../libs/utils"
+	import { BackTopProps } from './type.uts'
+
+	defineOptions({
+		name: 'rice-back-top'
+	})
+
+	const ns = useNamespace('back-top')
+	const emit = defineEmits<{
+		click : [e: UniPointerEvent]
+	}>()
+	const props = withDefaults(defineProps<BackTopProps>(), {
+		offset: 200,
+		mode: 'round',
+		duration: 300,
+		icon: 'back-top',
+		zoom: true,
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	// #ifndef MP
+	const _scrollTop = ref(0)
+	// #endif
+
+	// #ifdef MP
+	const _scrollTop = computed(() => props.scrollTop ?? 0)
+	// #endif
+	// #ifdef APP
+	const backTopRef = shallowRef<UniElement | null>(null)
+	// #endif
+
+	const isShow = computed(() => _scrollTop.value >= props.offset)
+
+	// #ifdef APP-HARMONY
+	const init = ref(false)
+	// #endif
+
+	const backToTop = (e : UniPointerEvent) => {
+
+		// #ifdef APP
+		if (hasStrValue(props.parentId)) {
+			const el = uni.getElementById(props.parentId!)
+			if (el != null) {
+				el.scrollTop = _scrollTop.value
+				nextTick(() => {
+					el.scrollTop = 0
+				})
+			}
+		} else {
+			uni.pageScrollTo({
+				scrollTop: 0,
+				duration: props.duration
+			})
+		}
+		// #endif
+
+		// #ifndef APP
+		uni.pageScrollTo({
+			scrollTop: 0,
+			duration: props.duration
+		})
+		// #endif
+
+		emit('click', e)
+
+	}
+
+	// #ifndef MP
+	//小程序自定义组件不支持页面的 onPageScroll 生命周期，需要手动传递scrollTop
+	onPageScroll((e) => {
+		// #ifdef APP-HARMONY
+		//鸿蒙平台不这样写的话一进入到页面就会有动画
+		init.value = true
+		// #endif
+		_scrollTop.value = e.scrollTop
+	})
+	// #endif
+
+	const _iconSize = computed(() => {
+		if (props.iconSize != null) return props.iconSize!
+		return hasStrValue(props.text) ? '20px' : '24px'
+	})
+
+
+
+	const backTopStyle = computed(() => {
+		const css = new Map<string, string | number>()
+		if (props.zIndex != null) css.set('z-index', props.zIndex!)
+		if (props.bottom != null) css.set('bottom', addUnit(props.bottom!))
+		if (props.right != null) css.set('right', addUnit(props.right!))
+		if (hasStrValue(props.bgColor)) {
+			css.set('background', props.bgColor!)
+			css.set('border-color', props.bgColor!)
+		}
+		if (props.height != null) css.set('height', props.height!)
+		if (props.width != null) css.set('width', props.width!)
+		// #ifndef APP-ANDROID
+		if (props.radius != null) css.set('border-radius', props.radius!)
+		// #endif
+		// #ifdef APP-ANDROID
+		//android style里面的border-radius 覆盖不了css里面的值
+		if (props.radius != null) {
+			css.set('border-radius', props.radius!)
+		} else if (props.mode == 'half-round') {
+			css.set('border-radius', '999px 0 0 999px')
+		} else {
+			css.set('border-radius', '999px')
+		}
+		// #endif
+		return css
+	})
+
+	const _textColor = computed(() => {
+		if (hasStrValue(props.textColor)) return props.textColor!
+		// #ifdef MP-WEIXIN
+		return 'inherit'
+		// #endif
+		return ""
+	})
+
+	const textStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (hasStrValue(props.textColor)) css.set('color', props.textColor!)
+		if (props.textSize != null) css.set('font-size', addUnit(props.textSize!))
+		return css
+	})
+
+	const backTopCss = computed(() => {
+		const mode = ['round', 'half-round'].includes(props.mode) ? props.mode : 'round'
+		return [
+			ns.b(""),
+			ns.theme(),
+			ns.m(mode),
+			ns.is('zoom', props.zoom),
+			ns.is('show', isShow.value),
+			// #ifdef APP-HARMONY
+			ns.is('init', init.value),
+			// #endif
+		]
+	})
+</script>
+
+<style scoped lang="scss">
+	.rice-back-top {
+		position: fixed;
+		align-items: center;
+		justify-content: center;
+		opacity: 1;
+		z-index: 998;
+		transition-property: transform, opacity;
+		/* #ifndef APP-HARMONY */
+		transition-duration: .3s;
+		/* #endif */
+		transition-timing-function: cubic-bezier(0.25, 0.8, 0.5, 1);
+		border: 1px solid var(--rice-border-color);
+		opacity: 0;
+		/* #ifdef APP */
+		bottom: 100px;
+		right: 20px;
+		/* #endif */
+		/* #ifndef APP */
+		bottom: calc(var(--uni-safe-area-inset-bottom) + 100px);
+		right: calc(var(--uni-safe-area-inset-right) + 20px);
+		color: var(--rice-text-color);
+		/* #endif */
+
+		/* #ifdef WEB */
+		cursor: pointer;
+		/* #endif */
+		background-color: var(--rice-back-top-background);
+
+		/* #ifdef APP-HARMONY */
+		/* 鸿蒙平台不这样写的话一进入到页面就会有动画 */
+		&--init {
+			transition-duration: .3s;
+		}
+
+		/* #endif */
+
+		&--round {
+			/* #ifndef APP-ANDROID */
+			border-radius: 999px;
+			/* #endif */
+			/* #ifdef APP */
+			right: 20px;
+			/* #endif */
+			/* #ifndef APP */
+			right: calc(var(--uni-safe-area-inset-right) + 20px);
+			/* #endif */
+			height: 48px;
+			width: 48px;
+		}
+
+		&--half-round {
+			flex-direction: row;
+			right: 0;
+			width: 64px;
+			height: 40px;
+			/* #ifndef APP-ANDROID */
+			border-radius: 999px 0 0 999px;
+			/* #endif */
+
+			&__text {
+
+				width: 25px;
+				margin-left: 2px;
+			}
+		}
+
+		&--zoom {
+			transform: scale(0);
+		}
+
+		&--show {
+			/* #ifdef APP-HARMONY */
+			transition-duration: .3s;
+			/* #endif */
+			transform: scale(1);
+			opacity: 1;
+		}
+
+		&__text {
+			color: var(--rice-text-color);
+			font-size: 10px;
+		}
+
+		:deep(.rice-icon) {
+			color: var(--rice-text-color);
+		}
+	}
+</style>

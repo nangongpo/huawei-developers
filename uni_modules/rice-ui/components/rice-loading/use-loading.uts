@@ -1,0 +1,157 @@
+// #ifdef APP
+import { LoadingMode, LoadingTimingFunction } from "./type.uts"
+import { getPxNum } from "../../libs/utils"
+export type UseLoadingOptions = {
+	loadingRef : Ref<UniElement | null>,
+	coreRef : Ref<UniElement | null>,
+	circularRef : Ref<UniElement | null>,
+	mode : LoadingMode,
+	timingFunction : LoadingTimingFunction,
+	color : ComputedRef<string>,
+	size : Ref<string | number>,
+	duration : number
+}
+
+	const easeInOutCubic = (t : number) : number => {
+		return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
+	}
+
+export function useLoading(options : UseLoadingOptions) {
+
+	let timer : number | null = null
+	let drawContext : DrawableContext | null = null
+
+	const startAmination = async () => {
+		const { coreRef, timingFunction } = options
+		await nextTick()
+
+		if (coreRef.value == null) return
+		coreRef.value!.animate([{
+			transform: "rotate(0deg)"
+		}, {
+			transform: "rotate(360deg)"
+		}], {
+			duration: options.duration,
+			easing: timingFunction,
+			// #ifndef APP-HARMONY
+			iterations: Infinity,
+			// #endif
+			// #ifdef APP-HARMONY
+			iterations: 9999999,//鸿蒙平台设置Infinity无效
+			// #endif
+		})
+	}
+
+	const drawCircular = (ctx : DrawableContext) => {
+
+		let rotate = 0;
+		const size = getPxNum(options.size.value)
+		const ARC_LENGTH = 359;
+		const center = size / 2;
+		const lineWidth = size / 10;
+		const duration = options.duration;
+		const ARC_MAX = 352
+		let startTime = 0;
+		let foreward_end = 0
+		let reversal_end = ARC_MAX
+		function pogressTime() : number {
+			const currentTime = Date.now();
+			const elapsedTime = currentTime - startTime;
+			const progress = elapsedTime / duration;
+			const easedProgress = easeInOutCubic(progress);
+			return easedProgress
+		}
+		const draw = () => {
+			ctx.reset();
+			ctx.beginPath();
+			if (reversal_end == ARC_MAX) {
+				foreward_end = Math.min(pogressTime() * ARC_LENGTH, ARC_LENGTH);
+				if (foreward_end >= ARC_MAX) {
+					reversal_end = 0
+					foreward_end = ARC_MAX
+					startTime = Date.now();
+				}
+			}
+
+			if (foreward_end == ARC_MAX) {
+				reversal_end = Math.min(pogressTime() * ARC_LENGTH, ARC_LENGTH);
+				if (reversal_end >= ARC_MAX) {
+					reversal_end = ARC_MAX
+					foreward_end = 0
+					startTime = Date.now();
+				}
+			}
+
+			ctx.arc(
+				center,
+				center,
+				center - lineWidth,
+				rotate + (reversal_end * Math.PI / 180),
+				rotate + (foreward_end * Math.PI / 180)
+			);
+			ctx.lineWidth = lineWidth;
+
+			ctx.strokeStyle = options.color.value
+			ctx.stroke();
+			ctx.update();
+			rotate += 0.05;
+		}
+		timer = setInterval(() => draw(), 16);
+
+	}
+
+	const removeInterval = () => {
+		if (timer != null) {
+			clearInterval(timer!)
+			timer = null
+		}
+	}
+
+	const initCircular = () => {
+		const circularRef = options.circularRef
+		if (circularRef.value == null) return
+		removeInterval()
+		drawContext = circularRef.value!.getDrawableContext()!
+		drawContext!.reset()
+		drawCircular(drawContext!)
+	}
+
+	const init = async () => {
+		await nextTick()
+		initCircular()
+		startAmination()
+	}
+
+	watch([
+		() : string => options.color.value,
+		() : string | number => options.size.value,
+	],
+		() => {
+			initCircular()
+		})
+
+
+	onMounted(() => {
+		init()
+	})
+
+	onUnmounted(() => {
+		removeInterval()
+	})
+
+	let hasHide = false
+	onPageShow(() => {
+		if (hasHide && drawContext != null) {
+			drawCircular(drawContext!)
+		}
+	})
+
+	//优化组件性能，组件在页面不可见时取消动画
+	onPageHide(() => {
+		hasHide = true
+		removeInterval()
+	})
+
+}
+
+// #endif

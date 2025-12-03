@@ -1,0 +1,99 @@
+<template>
+	<view :class="[ns.b(''),ns.theme()]" :style="[emptyStyle,customStyle]">
+		<slot name="image">
+			<image class="rice-empty__image" :src="imageSrc" :style="imageStyle"></image>
+		</slot>
+		<slot name="text">
+			<text v-if="hasStrValue(text)" class="rice-empty__text" :style="textStyle">{{text}}</text>
+		</slot>
+		<slot></slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Empty 空状态
+	 * @property {String} image 图片类型或URL，可选值为 `empty` `error` `network` `search`，或者图片URL
+	 * @value empty 空内容
+	 * @value error 错误
+	 * @value network 网络错误
+	 * @value search 搜索为空
+	 * @property {String|Number} width 图片的宽度
+	 * @property {String|Number} height 图片的高度
+	 * @property {String} text 图片下方的描述文字
+	 * @property {String} textColor 描述文字的颜色
+	 * @property {String|Number} textSize 描述文字的大小
+	 * @property {String|Number} marginTop 组件到上一个元素的间距
+	 * @property {Object} customStyle 自定义样式
+	 */
+	import { addUnit, hasStrValue } from '../../libs/utils';
+	import { useNamespace } from '../../libs/use';
+	import { EmptyProps } from './type.uts';
+
+	defineOptions({
+		name: 'rice-empty'
+	})
+	const ns = useNamespace('empty')
+	const props = withDefaults(defineProps<EmptyProps>(), {
+		image: 'empty',
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const imageSrc = computed(() => {
+		if (props.image == 'empty') {
+			return ''
+		} else if (props.image == 'error') {
+			return ''
+		} else if (props.image == 'network') {
+			return ''
+		} else if (props.image == 'search') {
+			return ''
+		}
+		return props.image
+	})
+
+	const emptyStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.marginTop != null) css.set('marginTop', addUnit(props.marginTop!))
+		return css
+	})
+
+	const imageStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.width != null) css.set('width', addUnit(props.width!))
+		if (props.height != null) css.set('height', addUnit(props.height!))
+		return css
+	})
+
+	const textStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.textSize != null) css.set('text-size', addUnit(props.textSize!))
+		if (props.textColor != null) css.set('color', props.textColor!)
+		return css
+	})
+</script>
+
+<style scoped lang="scss">
+	.rice-empty {
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		box-sizing: border-box;
+		padding: var(--rice-padding-md) 0;
+
+		&__image {
+			height: 160px;
+			width: 160px;
+		}
+
+		&__text {
+			font-size: var(--rice-font-size-sm);
+			color: var(--rice-text-color-2);
+			margin-top: var(--rice-padding-md);
+			padding: 0 var(--rice-padding-md);
+			/* #ifndef APP */
+			word-break: break-all;
+			/* #endif */
+		}
+	}
+</style>

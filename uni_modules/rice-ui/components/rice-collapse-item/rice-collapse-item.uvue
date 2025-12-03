@@ -1,0 +1,379 @@
+<template>
+	<view :class="ns.b('')" :style="customStyle">
+		<view class="rice-collapse-item__header" :class="{'rice-collapse-item__header--border':border}"
+			:hover-stay-time="100" :hover-class="hoverClass" :hover-stop-propagation="true" @click="handleHeaderClick">
+			<slot name="leftIcon" />
+			<view class="rice-collapse-item__title" :style="titleRectStyle">
+				<slot name="title">
+					<text class="rice-collapse-item__title--text" :class="{'rice-collapse-item__title--disabled':disabled}"
+						:style="titleTextStyle">{{title}}</text>
+				</slot>
+			</view>
+			<view v-if="$slots['value']!=null||hasStrValue(value)" class="rice-collapse-item__value" :style="valueRectStyle">
+				<slot name="value">
+					<text class="rice-collapse-item__value--text" :class="{'rice-collapse-item__value--disabled':disabled}"
+						:style="valueTextStyle">{{value}}</text>
+				</slot>
+			</view>
+			<slot name="rightIcon">
+				<rice-icon v-if="arrow" name="arrow-down" :color="rightIconColor" :custom-style="rightIconStyle" />
+			</slot>
+		</view>
+		<view class="rice-collapse-item__wrapper" ref="wrapperRef" :style="wrapperStyle"
+			:class="{'rice-collapse-item__content--border':contentBorder&&showContentBorder}"
+			@transitionend="onTransitionend">
+			<view class="rice-collapse-item__content" :id="contentId" :style="contentRectStyle">
+				<slot>
+					<text class="rice-collapse-item__content--text" :style="contentTextStyle">{{contentText}}</text>
+				</slot>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description rice-collapse-item 通过折叠面板收纳内容区域
+	 * @property {String|Number} name 唯一标识
+	 * @property {String} icon 标题栏左侧图标名称，等同于Icon组件的name属性
+	 * @property {String|Number} title 标题栏左侧内容
+	 * @property {String|Number} value 标题栏右侧内容
+	 * @property {String|Number} contentText 内容区域文字
+	 * @property {Number} duration 动画过渡时间单位ms，默认 250 
+	 * @property {Boolean} arrow 是否显示右侧的箭头，默认true
+	 * @property {Boolean} clickable 是否开启点击反馈，默认true
+	 * @property {Boolean} border 是否显示标题下面的边框，默认true
+	 * @property {Boolean} contentBorder 是否显示内容区域下面的边框，默认true
+	 * @property {Boolean} disabled 是否禁用，默认false
+	 * @property {Boolean} readonly 是否只读，默认false
+	 * @property {Boolean} titleStyle 标题栏左侧样式
+	 * @property {Boolean} valueStyle 标题栏右侧样式
+	 * @property {Boolean} contentStyle 展开的内容区域样式
+	 * @property {Object} customStyle 自定义样式
+	 */
+	import { getRandomStr, hasStrValue, splitCssProperty } from '../../libs/utils';
+	import { isDark } from "../../libs/store"
+	import { useNamespace } from '../../libs/use';
+	import { collapseInjectKey, CollapseInjectKey, CollapseActiveName } from '../rice-collapse';
+	import { CollapseItemProps } from './type.uts';
+
+	defineOptions({
+		name: 'rice-collapse-item'
+	})
+
+	const ns = useNamespace('collapse-item')
+	const collapse = inject<CollapseInjectKey>(collapseInjectKey)
+
+	const contentId = getRandomStr(10)
+
+	const props = withDefaults(defineProps<CollapseItemProps>(), {
+		arrow: true,
+		clickable: true,
+		border: true,
+		contentBorder: true,
+		disabled: false,
+		readonly: false,
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const showContentBorder = ref(false)
+	const wrapperRef = shallowRef<UniElement | null>(null)
+	const contentHeight = ref(0)
+	const itemName = computed(() => props.name ?? 'rice-' + getRandomStr())
+	const isActive = computed(() => collapse?.activeNames.value.includes(itemName.value) ?? false)
+	const activeNames = computed<CollapseActiveName[]>(() => collapse?.activeNames.value ?? [] as CollapseActiveName[])
+	const _duration = computed(() => props.duration ?? collapse?.duration.value ?? 250)
+
+	const handleHeaderClick = () => {
+		if (props.disabled || props.readonly) return
+		collapse?.handleItemClick!(itemName.value)
+	}
+
+	// #ifndef APP-ANDROID || APP-IOS
+	let timer : number | null = null
+	let endTimer : number | null = null
+
+	const clearTimer = () => {
+		if (timer != null) clearTimeout(timer!)
+		if (endTimer != null) clearTimeout(endTimer!)
+	}
+	// #endif
+
+	const handleTransitionend = (flag : boolean) => {
+		if (flag) {
+			wrapperRef.value?.style.setProperty('height', 'auto')
+		} else {
+			showContentBorder.value = false
+		}
+	}
+
+	const onTransitionend = () => {
+
+		// #ifndef APP
+		handleTransitionend(isActive.value)
+		// #endif
+	}
+
+
+	const startAnimate = async (newVal : boolean) => {
+		const height = `${contentHeight.value}px`
+		const properValue = wrapperRef.value?.style.getPropertyValue('height')
+
+		//#ifndef APP-IOS || APP-HARMONY
+		if (newVal) showContentBorder.value = true
+		//#endif
+
+		//#ifdef APP-IOS || APP-HARMONY
+		showContentBorder.value = newVal
+		//#endif
+
+		//关闭时先要把auto变成实际的高度才会有过渡动画
+		if (!newVal && properValue == 'auto') {
+			wrapperRef.value?.style.setProperty('height', height)
+		}
+
+		//android 和 ios端有bug：https://issues.dcloud.net.cn/pages/issues/detail?id=19405,使用 animate 的方式绕过
+
+		// #ifdef APP-ANDROID || APP-IOS
+		const newHeight = newVal ? height : '0px'
+
+		const an = wrapperRef.value?.animate({
+			height: [newHeight]
+		}, {
+			duration: _duration.value,
+			easing: 'ease-in-out',
+		})
+		if (an != null) {
+			an.onfinish = () => {
+				handleTransitionend(newVal)
+			}
+		}
+		// #endif
+
+
+		// #ifndef APP-ANDROID || APP-IOS
+
+		if (newVal) {
+			wrapperRef.value?.style.setProperty('height', height)
+			//鸿蒙不会触发 transitionend 事件，使用定时器处理高度为 auto 值
+			// #ifdef APP-HARMONY
+			endTimer = setTimeout(async () => {
+				wrapperRef.value?.style.setProperty('height', 'auto')
+			}, _duration.value);
+			// #endif
+		} else {
+			timer = setTimeout(() => {
+				wrapperRef.value?.style.setProperty('height', '0px')
+			}, 20)
+		}
+
+
+
+
+		// #endif
+
+
+
+
+	}
+
+
+	const instance = getCurrentInstance()
+
+	watch(isActive, async (newVal : boolean) => {
+		await nextTick()
+		uni.createSelectorQuery().in(instance).select(`#${contentId}`).boundingClientRect().exec(res => {
+			if (res.length == 0) return
+			const nodeInfo = res[0] as NodeInfo | null
+			contentHeight.value = nodeInfo?.height ?? 0
+			// #ifndef APP-ANDROID || APP-IOS
+			clearTimer()
+			// #endif
+			startAnimate(newVal)
+
+		})
+	}, {
+		immediate: true
+	})
+
+	const wrapperStyle = computed(() => {
+		const css = new Map<string, string>()
+		// #ifndef APP-ANDROID || APP-IOS
+		css.set('transition-duration', `${_duration.value}ms`)
+		// #endif
+
+		return css
+	})
+
+
+	//右侧箭头 的样式
+
+	const rightIconColor = computed(() => {
+		if (props.disabled) {
+			return isDark.value ? '#4d4d4d' : '#c8c9cc'
+		}
+		return ''
+	})
+
+	const rightIconStyle = computed(() => {
+		return {
+			transform: isActive.value ? 'rotate(-180deg)' : 'rotate(0deg)',
+			transition: `transform ${_duration.value}ms`,
+		}
+	})
+
+	const hoverClass = computed(() => {
+		if (props.disabled || props.readonly || !props.clickable) return 'none'
+		// #ifndef APP-IOS
+		return 'rice-collapse-item--hover'
+		// #endif
+		// #ifdef APP-IOS
+		return isDark.value ? 'rice-collapse-item--hover--dark' : 'rice-collapse-item--hover'
+		// #endif
+
+	})
+
+	//uniapp x 文本样式只能写在 text等特有组件上
+	const titleTextStyle = computed(() => splitCssProperty(props.titleStyle).textCssProperty)
+	const titleRectStyle = computed(() => splitCssProperty(props.titleStyle).rectCssProperty)
+	const valueTextStyle = computed(() => splitCssProperty(props.valueStyle).textCssProperty)
+	const valueRectStyle = computed(() => splitCssProperty(props.valueStyle).rectCssProperty)
+	const contentTextStyle = computed(() => splitCssProperty(props.contentStyle).textCssProperty)
+	const contentRectStyle = computed(() => splitCssProperty(props.contentStyle).rectCssProperty)
+
+
+
+	// #ifndef APP-ANDROID || APP-IOS
+	onUnmounted(() => {
+		clearTimer()
+	})
+	// #endif
+</script>
+
+<style scoped lang="scss">
+	@import "../../libs/style/mixins/hairline";
+
+	.rice-collapse-item {
+		background-color: var(--rice-collapse-background);
+		/* #ifdef WEB */
+		cursor: pointer;
+		/* #endif */
+
+		&__header {
+			position: relative;
+			justify-content: space-between;
+			align-items: center;
+			flex-direction: row;
+			padding: 14px var(--rice-padding-md);
+
+			&--border {
+				// 鸿蒙和ios平台在这里0.5px的边框线会显示不出来,原因未知
+				/* #ifdef APP-HARMONY ||APP-IOS */
+				border-bottom: 1px solid var(--rice-border-color);
+				/* #endif */
+
+				/* #ifndef APP-HARMONY || APP-IOS */
+				@include hairline-bottom;
+				/* #endif */
+			}
+		}
+
+		&__title {
+			flex: 1;
+			padding-right: 2px;
+
+			&--text {
+				line-height: 1.6;
+				color: var(--rice-text-color);
+				font-size: var(--rice-font-size-basic);
+				/* #ifndef APP */
+				word-wrap: break-word;
+				/* #endif */
+			}
+
+			&--disabled {
+				color: var(--rice-text-color-3);
+			}
+		}
+
+		&__value {
+			flex: 1;
+			padding-right: 2px;
+
+			/* #ifndef APP */
+			text-align: right;
+			word-break: break-all;
+
+			/* #endif */
+
+			&--text {
+				line-height: 1.6;
+				color: var(--rice-text-color-2);
+				font-size: var(--rice-font-size-basic);
+				text-align: right;
+				/* #ifndef APP */
+				word-wrap: break-word;
+				/* #endif */
+			}
+
+			&--disabled {
+				color: var(--rice-text-color-3);
+			}
+		}
+
+		&__wrapper {
+			height: 0;
+			/* #ifndef APP-ANDROID || APP-IOS */
+			transition-property: height;
+			transition-timing-function: ease-in-out;
+			/* #endif */
+
+			/* #ifndef APP */
+			will-change: height;
+			/* #endif */
+		}
+
+		&__content {
+			position: relative;
+			padding: var(--rice-padding-sm) var(--rice-padding-md);
+
+			&--border {
+				// 鸿蒙和ios平台在这里0.5px的边框线会显示不出来,原因未知
+				/* #ifdef APP-HARMONY ||APP-IOS */
+				border-bottom: 1px solid var(--rice-border-color);
+				/* #endif */
+
+				/* #ifndef APP-HARMONY || APP-IOS */
+				@include hairline-bottom;
+				/* #endif */
+			}
+
+			&--text {
+				line-height: 1.6;
+				color: var(--rice-text-color-2);
+				font-size: var(--rice-font-size-sm);
+				/* #ifndef APP */
+				word-wrap: break-word;
+				word-break: break-all;
+				/* #endif */
+			}
+		}
+
+		&--hover {
+
+			/* #ifndef APP-IOS */
+			background-color: var(--rice-hover-color);
+			/* #endif */
+
+			/* #ifdef APP-IOS */
+			background-color: #f2f3f5;
+
+			&--dark {
+				background-color: #3a3a3c;
+			}
+
+			/* #endif */
+
+		}
+	}
+</style>

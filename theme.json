@@ -1,0 +1,46 @@
+{
+  "light": {
+    "navigationBarTextStyle": "white",
+    "navigationBarBackgroundColor": "#007AFF",
+    "backgroundColorContent": "#ffffff",
+    "tabBarPagebackgroundColorContent": "#ffffff",
+    "backgroundColor": "#ffffff",
+    "backgroundTextStyle": "dark",
+
+    "tabBarColor": "#626262",
+    "tabBarSelectedColor": "#007AFF",
+    "tabBarBorderStyle": "white",
+    "tabBarBackgroundColor": "#F9F9F9",
+
+    "tabBarExploreIconPath": "static/explore.png",
+    "tabBarExploreSelectedIconPath": "static/exploreHL.png",
+    "tabBarForumIconPath": "static/forum.png",
+    "tabBarForumSelectedIconPath": "static/forumHL.png",
+    "tabBarManageIconPath": "static/manage.png",
+    "tabBarManageSelectedIconPath": "static/manageHL.png",
+    "tabBarMyIconPath": "static/my.png",
+    "tabBarMySelectedIconPath": "static/myHL.png"
+  },
+  "dark": {
+    "navigationBarTextStyle": "white",
+    "navigationBarBackgroundColor": "#1F1F1F",
+    "backgroundColor": "#1F1F1F",
+    "backgroundColorContent": "#646464",
+    "tabBarPagebackgroundColorContent": "#1F1F1F",
+    "backgroundTextStyle": "light",
+
+    "tabBarColor": "#cacaca",
+    "tabBarSelectedColor": "#007AFF",
+    "tabBarBorderStyle": "white",
+    "tabBarBackgroundColor": "#1F1F1F",
+
+    "tabBarExploreIconPath": "static/explore.png",
+    "tabBarExploreSelectedIconPath": "static/exploreHL.png",
+    "tabBarForumIconPath": "static/forum.png",
+    "tabBarForumSelectedIconPath": "static/forumHL.png",
+    "tabBarManageIconPath": "static/manage.png",
+    "tabBarManageSelectedIconPath": "static/manageHL.png",
+    "tabBarMyIconPath": "static/my.png",
+    "tabBarMySelectedIconPath": "static/myHL.png"
+  }
+}

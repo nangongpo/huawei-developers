@@ -1,0 +1,224 @@
+<template>
+	<view :class="loadingClass" :style="customStyle" ref="loadingRef">
+		<view v-if="mode=='snow' || slot['icon']!=null" :class="ns.m('snow')" ref="coreRef">
+			<slot name="icon">
+				<rice-icon name="loading" :size="size" :color="color" type="primary" />
+			</slot>
+		</view>
+		<view v-else-if="mode=='semicircle'||mode=='circle'" :class="ns.m(mode)" :style="semicircleStyle" ref="coreRef">
+		</view>
+		<view v-else :class="ns.m('circular')" :style="circularStyle" ref="circularRef"></view>
+		<!-- #ifndef APP -->
+		<view v-if="hasText" :class="ns.e('text')" :style="textStyle">
+			<slot>{{text}}</slot>
+		</view>
+		<!-- #endif -->
+
+		<!-- #ifdef APP -->
+		<text v-if="hasText" :class="ns.e('text')" :style="textStyle">
+			<slot>{{text}}</slot>
+		</text>
+		<!-- #endif -->
+
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description rice-loading
+	 * @property {String} mode 类型，可选 雪花 `snow`  半圆`semicircle` 圆 `circle`，默认 circular
+	 * @value circular circular
+	 * @value snow 雪花
+	 * @value semicircle 半圆
+	 * @value circle 圆
+	 * @property {Number} duration 过渡时间，单位ms，默认 1000
+	 * @property {String} color 颜色
+	 * @property {String} inactiveColor 图标的暗边颜色, mode为circle 模式有效
+	 * @property {Stiring|Number} size 加载图标大小 默认 24px
+	 * @property {String|Number} text 加载文字
+	 * @property {String} textColor 文字颜色
+	 * @property {String| Number} textSize 文字大小 默认 14px;
+	 * @property {Boolean} vertical 是否垂直排列图标和文字内容 默认false
+	 * @property {String} timingFunction 指定animation-timing-function的css属性，mode为circle或semicircle时有效,默认 ease-in-out
+	 * @property {Object} customStyle 自定义style
+	 */
+	import { addUnit, hasStrValue, getPxNum, isThemeColor } from '../../libs/utils';
+	import { useNamespace } from '../../libs/use';
+	import { Coloruts } from "../../libs/plugin"
+	import { LoadingProps, LoadingMode, LoadingTimingFunction } from './type.uts';
+	// #ifdef APP
+	import { useLoading, UseLoadingOptions } from './use-loading';
+	// #endif
+
+	defineOptions({
+		name: 'rice-loading'
+	})
+
+	const slot = useSlots()
+
+	const ns = useNamespace('loading')
+	const props = withDefaults(defineProps<LoadingProps>(), {
+		mode: 'circular',
+		duration: 1100,
+		vertical: false,
+		size: '24px',
+		color: '#1989fa',
+		timingFunction: 'ease-in-out',
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const hasText = computed(() => hasStrValue(props.text) || slot['default'] != null)
+	const color = computed(() => hasStrValue(props.color) ? props.color! : '#1989fa')
+	// #ifndef APP
+	const _duration = computed(() => props.duration + 'ms')
+	// #endif
+
+	// #ifdef APP
+	const loadingRef = shallowRef<UniElement | null>(null)
+	const coreRef = shallowRef<UniElement | null>(null)
+	const circularRef = ref<UniElement | null>(null)
+	const animationTimingFn = computed(() => (props.mode == 'snow' || slot['icon'] != null) ? 'linear' : props.timingFunction)
+
+	useLoading({
+		loadingRef,
+		coreRef,
+		circularRef,
+		mode: props.mode,
+		timingFunction: animationTimingFn.value,
+		color: color,
+		size: toRef<string | number>(() => props.size),
+		duration: props.duration,
+	} as UseLoadingOptions)
+
+	// #endif
+
+	const circularStyle = computed(() => {
+		const css = new Map<string, string>()
+		const size = addUnit(props.size!)
+		css.set('height', size)
+		css.set('width', size)
+		return css
+	})
+
+	const semicircleStyle = computed(() => {
+		const css = new Map<string, string>()
+		const size = addUnit(props.size!)
+		css.set('height', size)
+		css.set('width', size)
+		const hasColor = hasStrValue(props.color)
+		if (props.mode == 'circle') {
+			if (hasStrValue(props.inactiveColor)) {
+				css.set('border-color', props.inactiveColor!)
+			} else if (hasColor && props.color != 'inherit') {
+				const rgb = new Coloruts(props.color!).toRgb()
+				css.set('border-color', `rgba(${rgb['r']},${rgb['g']},${rgb['b']},.2)`)
+			}
+		}
+		css.set('border-top-color', color.value)
+		// #ifndef APP
+		css.set('animation-timing-function', props.timingFunction)
+		// #endif
+
+
+		return css
+	})
+
+	const textStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.vertical) {
+			css.set('margin-top', '8px')
+		} else {
+			css.set('margin-left', '8px')
+		}
+		if (hasStrValue(props.textColor)) {
+			css.set('color', props.textColor!)
+		}
+		if (hasStrValue(props.textSize)) {
+			css.set('font-size', addUnit(props.textSize!))
+		}
+		return css
+	})
+
+	const loadingClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+			ns.is("vertical", props.vertical),
+			ns.is("slot", slot['icon'] != null)
+		]
+	})
+</script>
+
+<style scoped lang="scss">
+
+	@mixin circle($color) {
+		border-radius: 999px;
+		border: 2px solid $color;
+		/* #ifndef APP */
+		border-top-color: v-bind("color");
+		animation: rotate v-bind("_duration") ease-in-out infinite;
+		/* #endif */
+	}
+
+	.rice-loading {
+		flex-direction: row;
+		align-items: center;
+
+
+		&--vertical {
+			flex-direction: column;
+			justify-content: center;
+		}
+
+		&--slot {
+			overflow: visible;
+		}
+
+		&--semicircle {
+			@include circle(transparent);
+		}
+
+		&--circle {
+			@include circle(rgba(25, 136, 249, .2));
+		}
+
+
+
+		/* #ifndef APP */
+
+		&--circular {
+			color: v-bind("color");
+			border-radius: 100%;
+			animation: rotate v-bind("_duration") linear infinite;
+			background: conic-gradient(from 180deg at 50% 50%, rgba(255, 255, 255, 0) 0deg, rgba(255, 255, 255, 0) 60deg, currentColor 330deg, rgba(255, 255, 255, 0) 360deg);
+			mask: radial-gradient(transparent calc(50% - 1rpx), #fff 50%);
+		}
+
+
+		&--snow {
+			animation: rotate v-bind("_duration") linear infinite;
+		}
+
+		/* #endif */
+
+		&__text {
+			font-size: var(--rice-font-size-sm);
+			color: var(--rice-text-color-2);
+		}
+
+	}
+
+	/* #ifndef APP */
+
+	@keyframes rotate {
+		from {
+			transform: rotate(0deg);
+		}
+
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	/* #endif */
+</style>

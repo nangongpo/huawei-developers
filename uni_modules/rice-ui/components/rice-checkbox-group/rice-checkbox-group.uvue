@@ -1,0 +1,97 @@
+<template>
+	<view :class="checkboxGroupClass" :style="customStyle">
+		<slot />
+	</view>
+</template>
+
+<script setup>
+	/**
+		 * @description CheckboxGroup
+		 * @property {Array} modelValue 所有选中项的value值
+		 * @property {Number} max 最大可选数,设置为0就是不限制
+		 * @property {Boolean} disabled 是否禁用
+		 * @property {Boolean} readonly 是否只读
+		 * @property {String} direction 排列方向
+		 * @value col 垂直
+		 * @value row 水平
+		 * @property {String} checkedColor 选中状态下的颜色
+		 * @property {String|Number} iconSize icon的大小
+		 * @property {String|Number} labelSize label文字的大小
+		 * @property {String} labelColor label文字的颜色
+		 * @property {String} shape 形状
+		 * @value square 方形（默认值）
+		 * @value round 圆形
+		 * @property {String} iconPosition 勾选图标的对齐方式
+		 * @value left 左边 (默认值)
+		 * @value right 右边
+		 * @property {Boolean} spaceBetween 是否两端对齐
+		 * @property {Object} customStyle 自定义style
+		 */
+	import { useNamespace } from '../../libs/use';
+	import { CheckboxGroupProps, CheckboxValueType } from "./type.uts"
+	import { defCheckboxDirection, defCheckboxIconPosition, defCheckboxShape, checkboxGroupInjectKey } from "./index.uts"
+	import { CheckboxDirection, CheckboxShape, CheckboxIconPosition, CheckboxGroupProvide } from "./type.uts"
+
+	defineOptions({
+		name: 'rice-checkbox-group'
+	})
+	const ns = useNamespace('checkbox-group')
+	const emit = defineEmits<{
+		change : [value: CheckboxValueType[]],
+	}>()
+	const props = withDefaults(defineProps<CheckboxGroupProps>(), {
+		disabled: false,
+		readonly: false,
+		direction: defCheckboxDirection,
+		spaceBetween: false,
+		shape: defCheckboxShape,
+		iconPosition: defCheckboxIconPosition,
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const modelValue = defineModel({
+		type: Array as PropType<CheckboxValueType[]>,
+		default: () : CheckboxValueType[] => ([])
+	})
+
+	const updateValue = (value : CheckboxValueType[]) => {
+		modelValue.value = value.slice(0)
+		emit('change', value)
+	}
+
+	// 不支持 ...toRefs()
+	provide(checkboxGroupInjectKey, {
+		modelValue,
+		disabled: toRef<boolean>(() => props.disabled),
+		readonly: toRef<boolean>(() => props.readonly),
+		direction: toRef<CheckboxDirection>(() => props.direction),
+		iconPosition: toRef<CheckboxIconPosition>(() => props.iconPosition),
+		spaceBetween: toRef<boolean>(() => props.spaceBetween),
+		iconSize: toRef<string | number | null>(() => props.iconSize),
+		labelSize: toRef<string | number | null>(() => props.labelSize),
+		labelColor: toRef<string | null>(() => props.labelColor),
+		checkedColor: toRef<string | null>(() => props.checkedColor),
+		shape: toRef<CheckboxShape>(() => props.shape),
+		max: toRef<number | null>(() => props.max),
+		updateValue,
+	} as CheckboxGroupProvide)
+
+
+	const checkboxGroupClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.m(props.direction),
+		]
+	})
+</script>
+
+<style scoped lang="scss">
+	.rice-checkbox-group {
+		flex-direction: column;
+
+		&--row {
+			flex-direction: row;
+			flex-wrap: wrap;
+		}
+	}
+</style>

@@ -1,0 +1,53 @@
+import { Ref } from "vue"
+export type UseSafeArea = {
+	safeBottom : Ref<number>,
+	safeTop : Ref<number>,
+	statusBarHeight : Ref<number>,
+}
+
+export function useSafeArea() {
+
+	const safeBottom = ref(0)
+	const safeTop = ref(0)
+	const statusBarHeight = ref(0)
+
+	const getWindowInfo = async () => {
+		await nextTick()
+		// #ifndef WEB
+		const windowInfo = uni.getWindowInfo()
+		const areaInfo = windowInfo.safeArea
+		if (areaInfo.bottom > 0) {
+			safeBottom.value = windowInfo.screenHeight - areaInfo.bottom
+		}
+		if (areaInfo.top > 0) {
+			safeTop.value = areaInfo.top
+		}
+		statusBarHeight.value = windowInfo.statusBarHeight
+		// #endif
+
+	}
+
+
+
+	let timer : number | null = null
+	onMounted(() => {
+		if (timer != null) clearTimeout(timer!)
+		timer = setTimeout(() => {
+			getWindowInfo()
+
+		}, 200)
+	})
+
+
+
+	onUnmounted(() => {
+		if (timer != null) clearTimeout(timer!)
+	})
+
+	return {
+		safeTop,
+		safeBottom,
+		statusBarHeight,
+	} as UseSafeArea
+
+}

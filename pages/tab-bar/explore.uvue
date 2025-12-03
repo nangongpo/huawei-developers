@@ -1,0 +1,108 @@
+<script setup lang="uts">
+	import news from '@/pages/explore/news/news.uvue'
+	import activity from '@/pages/explore/activity/activity.uvue'
+	import academy from '@/pages/explore/academy/academy.uvue'
+
+	const windowWidth = ref(0)
+	const tabs = ['资讯', '活动', '学堂']
+	const swiperIndex = ref(0)
+	// swiper组件disable-touch无法动态切换
+	const disableSwiperTouch = ref(true)
+
+	function changeTab(index : number) {
+		swiperIndex.value = index
+	}
+	
+	function swiperChange(e: UniSwiperChangeEvent) {
+		swiperIndex.value = e.detail.current
+	}
+	
+	function disableOuterSwiper() {
+		disableSwiperTouch.value = true
+		console.log('disableOuterSwiper', disableSwiperTouch.value)
+	}
+	
+	function enableOuterSwiper() {
+		disableSwiperTouch.value = false
+		console.log('enableOuterSwiper', disableSwiperTouch.value)
+	}
+	
+	function setPageWidth() {
+		const windowInfo = uni.getWindowInfo()
+		windowWidth.value = windowInfo.windowWidth
+	}
+	
+	onReady(() => {
+		console.log('onReady')
+		setPageWidth()
+	})
+	
+	onResize(() => {
+		console.log('onResize')
+		setPageWidth()
+	})
+	
+	provide('windowWidth', windowWidth)
+</script>
+
+<template>
+	<!-- 状态栏占位 -->
+	<view class="status-bar"></view>
+	<view class="flex-row items-center justify-between uni-padding-wrap">
+		<!-- 标签页 -->
+		<view class="swiper-tabs">
+			<text
+				class="swiper-tab"
+				v-for="(tab, index) in tabs" 
+				:key="index" 
+				:class="{ active: swiperIndex == index }" 
+				@click="changeTab(index)">
+				{{ tab }}
+			</text>
+		</view>
+		<!-- 消息中心 -->
+		<message-center-icon></message-center-icon>
+	</view>
+	<!-- 利用swiper实现局部内容切换， swiper嵌套scroll-view + swiper，导致内层swiper无法滑动 -->
+	<swiper
+		ref="swiper"
+		class="flex-1"
+		:current="swiperIndex"
+		:disable-touch="disableSwiperTouch"
+		:duration="300"
+		:indicator-dots="false"
+		@change="swiperChange">
+		<swiper-item>
+			<news v-show="swiperIndex == 0" :is-active="swiperIndex == 0"></news>
+		</swiper-item>
+		
+		<swiper-item>
+			<activity v-show="swiperIndex == 1" :is-active="swiperIndex == 1"></activity>
+		</swiper-item>
+		
+		<swiper-item>
+			<academy v-show="swiperIndex == 2" :is-active="swiperIndex == 2"></academy>
+		</swiper-item>
+	</swiper>
+</template>
+
+<style lang="scss" scoped>
+	.swiper-tabs {
+		height: $uni-navbar-height;
+		display: flex;
+		flex-wrap: nowrap;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.swiper-tab {
+		font-size: 16px;
+		padding: 0 12px;
+		text-align: center;
+	}
+
+	.swiper-tab.active {
+		font-size: $uni-navbar-font-size;
+		font-weight: bold;
+	}
+</style>

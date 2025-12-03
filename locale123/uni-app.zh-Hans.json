@@ -1,0 +1,19 @@
+{
+  "common": {
+    "uni.showActionSheet.cancel": "取消",
+    "uni.showModal.cancel": "取消",
+    "uni.showModal.confirm": "确定",
+    "uni.chooseImage.cancel": "取消",
+    "uni.chooseImage.sourceType.album": "从相册选择",
+    "uni.chooseImage.sourceType.camera": "拍摄",
+    "uni.chooseVideo.cancel": "取消",
+    "uni.chooseVideo.sourceType.album": "从相册选择",
+    "uni.chooseVideo.sourceType.camera": "拍摄",
+    "uni.setClipboardData.success": "内容已复制"
+  },
+  "ios": {},
+  "android": {},
+  "web": {
+    "uni.async.error": "连接服务器超时，点击屏幕重试"
+  }
+}

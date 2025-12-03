@@ -1,0 +1,17 @@
+
+@function joinVarName($list){
+	$name:'--rice';
+	@each $item in $list{
+		@if $item!=''{
+			$name:$name+'-'+$item;
+		}
+	}
+}
+
+@mixin setCssVarValue($name,$value){
+	#{joinVarName($name)}:#{$value}
+}
+
+@mixin setColorTheme($color,$type){
+	// @include setCssVarValue('color',$type,map.get($colors,$type,'base'))
+}

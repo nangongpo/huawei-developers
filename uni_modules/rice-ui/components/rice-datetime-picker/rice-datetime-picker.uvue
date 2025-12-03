@@ -1,0 +1,324 @@
+<template>
+	<rice-picker v-model="currentValues" v-model:show="(show as boolean)" :columns="currentColumns" :use-popup="usePopup"
+		:loading="loading" :toolbar-position="toolbarPosition" :immediate-change="immediateChange"
+		:close-on-click-confirm="closeOnClickConfirm" :close-on-click-cancel="closeOnClickCancel"
+		:close-on-click-overlay="closeOnClickOverlay" :title="title" :confirm-button-text="confirmButtonText"
+		:cancel-button-text="cancelButtonText" :font-size="fontSize" :visible-option-num="visibleOptionNum"
+		:option-height="optionHeight" :empty-text="emptyText" :z-index="zIndex"
+		:safe-area-inset-bottom="safeAreaInsetBottom" @confirm="onConfirm" @cancel="onCancel" @change="onChange">
+	</rice-picker>
+</template>
+
+<script setup>
+	/**
+	 * @description DateTimePicker
+	 * @property {String} modelValue 绑定值，也可以所用v-model
+	 * @property {String} type 时间类型 默认 date
+	 * @value year 年
+	 * @value month 年月
+	 * @value date 年月日 (默认值)
+	 * @value minute 时分
+	 * @value time 时分秒
+	 * @value datehour 年月日时
+	 * @value dateminute 年月日时分
+	 * @value datetime 年月日时分秒
+	 * @property {String} maxDate 可选的最大时间 如 2025-03-01
+	 * @property {String} minDate 可选的最小时间 如 2025-02-01
+	 * @property {String} format 用于格式化 pick、change、confirm 事件返回的值
+	 * @property {String} toolbarPosition 顶部栏位置,默认 bottom 可选 top
+	 * @value bottom 底部
+	 * @value top 顶部
+	 * @value none 不显示
+	 * @property {String|Number} title 顶部栏标题
+	 * @property {String|Number} confirmButtonText 确定按钮文字，设置为空字符串可以隐藏
+	 * @property {String|Number} cancelButtonText 取消按钮文字，设置为空字符串可以隐藏
+	 * @property {String|Number} fontSize 选项的文字大小，默认 16px
+	 * @property {String|Number} optionHeight 每个选项的高度 ，默认50px
+	 * @property {Number} visibleOptionNum 可见的选项个数，默认 
+	 * @property {Boolean} closeOnClickOverlay  是否在点击遮罩层后关闭，默认true
+	 * @property {Boolean} closeOnClickConfirm  是否在点击确认后关闭，默认true
+	 * @property {Boolean} closeOnClickCancel  是否在点击取消后关闭，默认true
+	 * @property {Boolean} loading 是否为加载状态
+	 * @property {Boolean} safeAreaInsetBottom 是否开启底部安全区适配
+	 * @property {Number} zIndex z-index 层级，默认 999
+	 * @property {Boolean} usePopup 是否使用popup，默认 true
+	 * @property {Function} filter 选项过滤函数
+	 * @property {Function} formatter 选项格式化函数
+	 * @property {String} emptyText 空数据时的提示语 默认 暂无数据
+	 * @property {Boolean} immediateChange 是否在手指松开时立即触发 change 事件。若不开启则会在滚动动画结束后触发 change 事件。默认true，仅微信小程序支持
+	 */
+
+	import { clamp, isSameValue, hasStrValue } from '../../libs/utils';
+	import { dateuts, Dateuts } from "../../libs/plugin";
+	import { PickerOption, PickerEvent } from '../rice-picker';
+	import { getOptions, getMode, isTime, startOfMaps, FULL_MODES, isRightDate } from "./utils.uts"
+	import { DateTimePickerProps, DateTimePickerUnit, DateTimePickerExtend, DateTimePickerFormatter } from './type.uts';
+
+	defineOptions({
+		name: 'rice-datetime-picker'
+	})
+
+	const emit = defineEmits<{
+		confirm : [value: string, extend: DateTimePickerExtend],
+		change : [value: string, extend: DateTimePickerExtend],
+		cancel : [value: string, extend: DateTimePickerExtend],
+	}>()
+
+	const props = withDefaults(defineProps<DateTimePickerProps>(), {
+		type: 'date',
+		minDate: dateuts().subtract(10, 'year').startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+		maxDate: dateuts().add(10, 'year').endOf('day').format('YYYY-MM-DD HH:mm:ss'),
+		usePopup: true,
+		closeOnClickOverlay: true,
+		closeOnClickConfirm: true,
+		closeOnClickCancel: true,
+		safeAreaInsetBottom: true,
+		immediateChange: true,
+	})
+
+	const modelValue = defineModel({
+		type: String,
+		default: ''
+	})
+
+	const show = defineModel('show', {
+		type: Boolean,
+		default: false
+	})
+
+	//defineProps 的 default 是一个静态值（仅在组件首次创建时赋值），它不会在每次组件重新挂载时重新计算。
+	if (!hasStrValue(modelValue.value)) {
+		modelValue.value = dateuts().format('YYYY-MM-DD HH:mm:ss')
+	}
+
+	const mode = computed(() => getMode(props.type))
+	const isVisible = computed(() => show.value || props.usePopup == false)
+
+	const getMinOrMaxDate = (minOrMax : string) => {
+
+		const isTimeMode = props.type == 'minute' || props.type == 'time'
+		const isMin = minOrMax == 'min'
+		let boundary = isMin ? props.minDate : props.maxDate
+		const isDate = isRightDate(boundary)
+
+		// 类型为时间选择器是，年月日应该设置为一致进行比较
+		if (isTimeMode) {
+			const now = isRightDate(modelValue.value)
+				? dateuts(modelValue.value).format('YYYY-MM-DD')
+				: dateuts().format('YYYY-MM-DD')
+			const range = isMin ? '00:00:00' : '23:59:59'
+			//格式化成 HH:mm:ss
+			const second = isDate
+				? dateuts(boundary).format('HH:mm:ss')
+				: isTime(boundary) ? boundary : range
+			return dateuts(`${now} ${second}`)
+
+		}
+		//非时间选择器
+
+		if (!isDate) {
+			return isMin ? dateuts().subtract(10, 'year').startOf('day')
+				: dateuts().add(10, 'year').endOf('day')
+		}
+		return dateuts(boundary)
+	}
+
+	const minDate = computed(() => getMinOrMaxDate('min'))
+	const maxDate = computed(() => getMinOrMaxDate('max'))
+
+
+	const getParseDate = () : Dateuts => {
+		let newVal = modelValue.value
+		const isTimeMode = props.type == 'minute' || props.type == 'time'
+		//eg 15:00 16:00:00
+		if (isTimeMode && isTime(newVal)) {
+			newVal = dateuts().format(`YYYY-MM-DD ${newVal}`)
+		}
+		const isDate = isRightDate(newVal)
+		if (!isDate) {
+			return minDate.value
+		}
+		let date = dateuts(newVal)
+
+		//将时间值限定在最小值和最大值区间内，若小于最小值，则使用最小值；若大于最大值，则使用最大值。
+		const compare = clamp(date.valueOf(), minDate.value.valueOf(), maxDate.value.valueOf())
+		const startValue = (startOfMaps[props.type] as string | null) ?? 'date'
+		//@ts-ignore
+		const d = dateuts(compare).startOf(startValue)
+		return d.isValid() ? d : minDate.value
+	}
+	const currentDate = ref<Dateuts>(getParseDate())
+
+	const initCurrentValues = () : number[] => {
+		const date = currentDate.value.toObject()
+		const values = mode.value.map((type) : number => {
+			switch (type) {
+				case 'year':
+					return date.year;
+				case 'month':
+					return date.month + 1;
+				case 'day':
+					return date.date;
+				case 'hour':
+					return date.hours;
+				case 'minute':
+					return date.minutes;
+				case 'second':
+					return date.seconds;
+				default:
+					return 0
+			}
+		})
+		return values
+	}
+	const currentValues = ref<number[]>(initCurrentValues())
+
+
+	function getDateArr(type = 'default') {
+		let date = minDate.value
+		if (type == 'max') {
+			date = maxDate.value
+		} else if (type == 'default') {
+			const compare = clamp(currentDate.value.valueOf(), minDate.value.valueOf(), maxDate.value.valueOf())
+			const d = dateuts(compare)
+			date = d.isValid() ? d : minDate.value
+		}
+		return date.toArray()
+	}
+
+	const getOptionBoundary = (minOrMax : string, type : DateTimePickerUnit) : number => {
+		const isMin = minOrMax == 'min'
+		const boundary = {
+			year: [2000, 2099],
+			month: [0, 11],
+			day: [1, currentDate.value.daysInMonth()],
+			hour: [0, 23],
+			minute: [0, 59],
+			second: [0, 59]
+		}
+		const curDate = getDateArr()
+		const compareDate = getDateArr(minOrMax)
+		const boundaryInfo = (boundary.getArray(type)!) as number[]
+		for (let i = 0; i < curDate.length; i++) {
+			if (type == FULL_MODES[i]) {
+				return compareDate[i]
+			}
+			//当前选择的时间和最大/最小可选时间不同
+			if (curDate[i] != compareDate[i]) {
+				return isMin ? boundaryInfo[0] : boundaryInfo[1]
+			}
+		}
+		return isMin ? boundaryInfo[0] : boundaryInfo[1]
+	}
+
+	const createOptionsGenera = (type : DateTimePickerUnit) => {
+		let min = getOptionBoundary('min', type)
+		let max = getOptionBoundary('max', type)
+		if (type == 'month') {
+			min += 1
+			max += 1
+		}
+		return getOptions(min, max, type, props.formatter, props.filter)
+	}
+	const currentColumns = ref<PickerOption[][]>([])
+
+	const updateColumns = () => {
+		if (!isVisible.value) return
+		let options = mode.value.map((type) : PickerOption[] => {
+			switch (type) {
+				case 'year':
+					return createOptionsGenera('year')
+				case 'month':
+					return createOptionsGenera('month')
+				case 'day':
+					return createOptionsGenera('day')
+				case 'hour':
+					return createOptionsGenera('hour')
+				case 'minute':
+					return createOptionsGenera('minute')
+				case 'second':
+					return createOptionsGenera('second')
+				default:
+					return ([] as PickerOption[])
+			}
+		})
+		currentColumns.value = options
+	}
+	updateColumns()
+
+	const format = computed<string>(() => {
+		if (props.format != null) return props.format!
+		const type = props.type
+		if (type == 'year') return 'YYYY'
+		if (type == 'month') return 'YYYY-MM'
+		if (type == 'date') return 'YYYY-MM-DD'
+		if (type == 'minute') return 'HH:mm'
+		if (type == 'time') return 'HH:mm:ss'
+		if (type == 'datehour') return 'YYYY-MM-DD HH'
+		if (type == 'dateminute') return 'YYYY-MM-DD HH:mm'
+		return 'YYYY-MM-DD HH:mm:ss'
+	})
+
+	const getAllValue = () => {
+		const date = currentDate.value.toObject()
+		const result = {
+			year: date.year,
+			month: date.month + 1,
+			day: date.date,
+			hour: date.hours,
+			minute: date.minutes,
+			second: date.seconds,
+			timeStamp: 0,
+			value: ''
+		} as DateTimePickerExtend
+
+		mode.value.forEach((m, i) => {
+			if (result[m] != null) result[m] = currentValues.value[i]
+		})
+		const newVal = `${result.year}-${result.month}-${result.day} ${result.hour}:${result.minute}:${result.second}`
+		const d = dateuts(newVal)
+		result.timeStamp = d.valueOf()
+		result.value = d.format(format.value)
+		return result
+	}
+
+	const onConfirm = () => {
+		const values = getAllValue()
+		emit('confirm', values.value, values)
+	}
+
+	const onCancel = () => {
+		const values = getAllValue()
+		emit('cancel', values.value, values)
+	}
+
+	const onChange = () => {
+		const values = getAllValue()
+		emit('change', values.value, values)
+	}
+
+	const updateModelValue = (newVal : string) => {
+		if (!isVisible.value || modelValue.value == newVal) return
+		modelValue.value = newVal
+	}
+
+	watch(currentValues, () => {
+		const result = getAllValue()
+		updateModelValue(result.value)
+	}, {
+		deep: true,
+		immediate: true,
+	})
+	watch([modelValue, mode, isVisible, () => props.minDate, () => props.maxDate], async () => {
+		if (!isVisible.value) return
+		currentDate.value = getParseDate()
+		currentValues.value = initCurrentValues()
+		updateColumns()
+	}, {
+		deep: true,
+	})
+</script>
+
+<style scoped lang="scss">
+
+</style>

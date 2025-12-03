@@ -1,0 +1,23 @@
+export type NavbarProps = {
+	title ?: string,
+	titleSize ?: string | number,
+	titleColor ?: string,
+	titleWidth ?: string | number,
+	fixed ?: boolean,
+	placeholder ?: boolean,
+	border ?: boolean,
+	leftArrow ?: boolean,
+	leftIcon ?: string,
+	leftIconSize ?: string | number,
+	leftIconColor ?: string,
+	leftText ?: string,
+	leftTextColor ?: string,
+	rightText ?: string,
+	rightTextColor ?: string,
+	zIndex ?: number,
+	bgColor ?: string,
+	safeAreaInsetTop ?: boolean,
+	height ?: string | number,
+	autoBack ?: boolean,
+	customStyle ?: UTSJSONObject
+}

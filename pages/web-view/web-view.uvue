@@ -1,0 +1,185 @@
+<script setup lang="uts">
+	import loadingGif from '@/static/loading.gif'
+
+	const showLoading = ref(true)
+	const showAction = ref(false)
+
+	const title = ref('')
+	const src = ref('')
+	const webViewStyle = reactive({})
+	const webviewStyles = reactive({ progress: false })
+	const horizontalScrollBarAccess = ref(true)
+	const verticalScrollBarAccess = ref(true)
+	const bounces = ref(true)
+	const disableUserSelectMenu = ref(false)
+	
+	onLoad((event) => {
+		src.value = event.url ?? ''
+		title.value = event.title ?? ''
+	})
+	
+	function message(event : UniWebViewMessageEvent) {
+		console.log(JSON.stringify(event.detail))
+	}
+	
+	function error(event : UniWebViewErrorEvent) {
+		console.log(event)
+	}
+	
+	function loading(event : UniWebViewLoadingEvent) {
+		console.log(JSON.stringify(event.detail))
+	}
+	
+	function load(event : UniWebViewLoadEvent) {
+		console.log(JSON.stringify(event.detail))
+		showLoading.value = false
+	}
+	
+	function download(event : UniWebViewDownloadEvent) {
+		console.log(JSON.stringify(event.detail))
+	}
+	
+	function contentheightchange(event : UniWebViewContentHeightChangeEvent) {
+		console.log(JSON.stringify(event.detail))
+	}
+	
+	function touchstart(event : UniTouchEvent) {
+		console.log(JSON.stringify(event))
+	}
+	
+	function tap(event : UniPointerEvent) {
+		console.log(JSON.stringify(event))
+	}
+	
+	// 跳转页面
+	function navigateTo(url: string) {
+		showAction.value = false
+		uni.navigateTo({ url })
+	}
+	
+	// 复制页面地址
+	function copyLink() {
+		uni.setClipboardData({
+			data: src.value,
+			success: () => {
+				showAction.value = false
+				uni.showToast({ title: '复制成功', position: 'bottom' })
+			}
+		})
+	}
+</script>
+
+<template>
+	<!-- 状态栏占位 -->
+	<view class="status-bar"></view>
+	<common-back-navbar :title="title" class="uni-padding-wrap">
+		<template #right>
+			<iconfont name="ellipsis-vertical" size="24px" hover-class="none" @click="showAction = true"></iconfont>
+		</template>
+	</common-back-navbar>
+	<view v-show="showLoading" class="loading-container flex-1">
+		<view class="loading-content">
+			<image class="loading-icon" :src="loadingGif" mode="widthFix"></image>
+		</view>
+		<text class="text-sm text-grey">正在努力加载中</text>
+	</view>
+	<web-view v-show="!showLoading" id="web-view" class="flex-1" :style="webViewStyle" :src="src"
+		:webview-styles="webviewStyles" :horizontalScrollBarAccess="horizontalScrollBarAccess" :verticalScrollBarAccess="verticalScrollBarAccess"
+		:bounces="bounces" :disable-user-select-menu="disableUserSelectMenu" @message="message" @error="error" @loading="loading"
+		@load="load" @download="download" @contentheightchange="contentheightchange" @touchstart="touchstart" @tap="tap">
+	</web-view>
+	<rice-popup v-model:show="showAction" position="bottom" radius="8px" :closeable="false" :duration="600" :safe-area-inset-bottom="false">
+		<view class="popup-actions-container">
+			<view class="popup-actions-row">
+				<view class="popup-actions-col">
+					<view class="popup-actions-icon__wrapper">
+						<image class="popup-actions-image" src="@/static/wechat.png" />
+					</view>
+					<text class="popup-actions-text">微信</text>
+				</view>
+				<view class="popup-actions-col">
+					<view class="popup-actions-icon__wrapper">
+						<image class="popup-actions-image" src="@/static/wechat-moments.png" />
+					</view>
+					<text class="popup-actions-text">朋友圈</text>
+				</view>
+				<view class="popup-actions-col" @click="copyLink">
+					<view class="popup-actions-icon__wrapper">
+						<iconfont name="copy-link" size="24px" hover-class="none" icon-class="text-primary" />
+					</view>
+					<text class="popup-actions-text">复制链接</text>
+				</view>
+			</view>
+			<rice-divider />
+			<view class="popup-actions-row">
+				<view class="popup-actions-col" @click="navigateTo('/pages/report/report')">
+					<view class="popup-actions-icon__wrapper">
+						<iconfont name="report" size="24px" hover-class="none" />
+					</view>
+					<text class="popup-actions-text">举报</text>
+				</view>
+			</view>
+			<view class="popup-actions-footer">
+				<rice-button class="popup-actions-cancel" @click="showAction = false">
+					<text class="text-primary text-bold">取消</text>
+				</rice-button>
+			</view>
+		</view>
+	</rice-popup>
+</template>
+
+<style lang="scss" scoped>
+	.loading-container {
+		align-items: center;
+		justify-content: center;
+	}
+	.loading-content {
+		height: 64px;
+		line-height: 64px;
+	}
+	.loading-icon {
+		width: 48px;
+		height: 48px;
+	}
+	.popup-actions-container {
+		padding-top: 32px;
+	}
+	.popup-actions-row {
+		padding: 0 16px;
+		display: flex;
+		flex-direction: row;
+	}
+	.popup-actions-col {
+		padding: 0 16px;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+	}
+	.popup-actions-icon__wrapper {
+		background: #F9F9F9;
+		width: 48px;
+		height: 48px;
+		border-radius: 48px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		margin-bottom: 10px;
+	}
+	.popup-actions-image {
+		width: 32px;
+		height: 32px;
+	}
+	.popup-actions-text {
+		font-size: 12px;
+	}
+	.popup-actions-footer {
+		background: #F9F9F9;
+		padding: 16px 0;
+	}
+	.popup-actions-cancel {
+		height: 32px;
+		background: #F9F9F9;
+		border: none;
+	}
+</style>

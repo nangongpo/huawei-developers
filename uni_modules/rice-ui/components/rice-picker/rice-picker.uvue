@@ -1,0 +1,597 @@
+<template>
+	<rice-overlay v-if="usePopup" v-model:show="show" :z-index="zIndex-1" :close-on-click-overlay="closeOnClickOverlay"
+		:duration="duration"></rice-overlay>
+	<view ref="pickerRef" :class="pickerClass" :style="pickerStyle">
+		<slot name="top">
+			<view v-if="hasTopBar" class="rice-picker__top">
+				<text v-if="toolbarPosition=='top'" class="rice-picker__cancel" @click="cancel">{{cancelButtonText}}</text>
+				<text v-if="hasStrValue(title)" class="rice-picker__title">{{title}}</text>
+				<text v-if="toolbarPosition=='top'" class="rice-picker__confirm" @click="confirm">{{confirmButtonText}}</text>
+			</view>
+		</slot>
+		<picker-view v-if="hasOptions" :value="selectedIndex" :style="pickerViewStyle" :indicator-style="indicatorStyle"
+			:mask-top-style="maskTopStyle" :mask-bottom-style="maskBottomStyle" :mask-style="maskStyle"
+			:immediate-change="immediateChange" @change="onPickerChange">
+			<picker-view-column v-for="(item,index) in currentColumns" :key="index">
+				<!-- #ifdef APP-ANDROID  -->
+				<view ref="columnItemRef" :style="getColumnHeight(item)" android-layer-type="hardware">
+				</view>
+				<!-- #endif -->
+
+				<!-- #ifndef APP-ANDROID -->
+				<view v-for="option in item" :key="option.value" class="rice-picker__option" :style="columnItemStyle">
+					<text class="rice-picker__option__text" :style="getTextStyle(option,index)">{{option.text}}</text>
+				</view>
+				<!-- #endif -->
+
+			</picker-view-column>
+		</picker-view>
+
+		<view v-else class="rice-picker__empty" :style="pickerViewStyle">
+			<slot name="empty">
+				<text v-if="!loading" class="rice-picker__empty__text">{{emptyText}}</text>
+			</slot>
+		</view>
+
+		<!-- loading -->
+		<view v-if="loading" class="rice-picker__loading">
+			<rice-loading />
+		</view>
+
+		<!-- empty -->
+
+		<slot name="bottom">
+			<view v-if="toolbarPosition=='bottom'" class="rice-picker__bottom">
+				<rice-button v-if="hasCancel" :width="hasConfirm?'120px':'185px'" :text="cancelButtonText"
+					:color="isDark?'#2b2b2b':'#f2f2f2'" :custom-style="{marginRight:hasConfirm?'15px':'0px'}"
+					:text-color="cancelButtonTextColor" @click="cancel"></rice-button>
+				<rice-button v-if="hasConfirm" :width="hasCancel?'120px':'185px'" :text="confirmButtonText" type="primary"
+					@click="confirm" />
+			</view>
+		</slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Picker,级联选择的数据嵌套深度需要保持一致，如果部分选项没有子选项，需要使用空数组进行占位。
+	 * @property {Array} modelValue 绑定的数据
+	 * @property {Array} columns 数据，二维数组格式 ,默认[[]] ,单列：[[]] 多列:[[],[]]，联动:[[{value:x,children:{}}]]
+	 * @property {String} toolbarPosition 顶部栏位置
+	 * @value top 顶部 
+	 * @value bottom 底部（默认值）
+	 * @value none 不显示
+	 * @property {String} title 顶部栏标题
+	 * @property {String} confirmButtonText 确定按钮文字，设置为空字符串可以隐藏
+	 * @property {String} cancelButtonText 取消按钮文字，设置为空字符串可以隐藏
+	 * @property {String|Number} fontSize 选项的文字大小，默认 16px
+	 * @property {String|Number} optionHeight 每个选项的高度 ，默认50px
+	 * @property {Number} visibleOptionNum 可见的选项个数，默认 5
+	 * @property {Boolean} closeOnClickOverlay  是否在点击遮罩层后关闭，默认true
+	 * @property {Boolean} closeOnClickConfirm  是否在点击确认按钮后关闭，默认true
+	 * @property {Boolean} closeOnClickCancel  是否在点击取消按钮后关闭，默认true
+	 * @property {Boolean} loading 是否为加载状态
+	 * @property {Boolean} safeAreaInsetBottom 是否开启底部安全区适配
+	 * @property {Boolean} usePopup 是否使用popup 默认 true
+	 * @property {Boolean} immediateChange 是否在手指松开时立即触发 change 事件。若不开启则会在滚动动画结束后触发 change 事件。默认true，仅微信小程序支持
+	 * @property {Boolean} zIndex z-index 层级 默认 10099
+	 * @property {String} emptyText 空数据时的提示语 默认 暂无数据
+	 */
+	import { useCssVar, useNamespace, useSafeArea } from "../../libs/use";
+	import { isDark } from "../../libs/store";
+	import { addUnit, getPxNum, hasStrValue, isSameValue } from "../../libs/utils"
+	import { usePickerStyle } from "./style"
+	import { getColumnsType, formatCascadeColumns, isOptionExist, getOptionByIndex, findOptionByValue, getFirstEnabledOption, getColumnsByValue } from "./utils"
+	import { PickerProps, PickerOption, PickerColumnType, PickerModelValue, PickerEvent, PickerOptions } from "./type.uts"
+
+	defineOptions({
+		name: 'rice-picker'
+	})
+
+	const ns = useNamespace('picker')
+	const { safeBottom } = useSafeArea()
+
+	const slots = useSlots()
+	const emit = defineEmits<{
+		change : [event: PickerEvent],
+		confirm : [event: PickerEvent],
+		cancel : [event: PickerEvent],
+	}>()
+
+	const props = withDefaults(defineProps<PickerProps>(), {
+		toolbarPosition: 'bottom',
+		fontSize: '16px',
+		optionHeight: '50px',
+		visibleOptionNum: 5,
+		confirmButtonText: '确定',
+		cancelButtonText: '取消',
+		closeOnClickOverlay: true,
+		closeOnClickConfirm: true,
+		closeOnClickCancel: true,
+		//#ifdef WEB
+		zIndex: 999,
+		//#endif
+		//#ifndef WEB
+		zIndex: 10099,
+		//#endif
+		usePopup: true,
+		loading: false,
+		safeAreaInsetBottom: null,
+		emptyText: '暂无数据',
+		immediateChange: true,
+		columns: () : PickerOption[][] => ([] as PickerOption[][])
+	})
+
+	const modelValue = defineModel({
+		type: Array as PropType<PickerModelValue[]>,
+		default: () : PickerModelValue[] => ([])
+	})
+
+	const show = defineModel('show', {
+		type: Boolean,
+		default: false
+	})
+
+	const indicatorHeight = computed(() => getPxNum(props.optionHeight))
+	const { maskTopStyle, maskBottomStyle, maskStyle } = usePickerStyle()
+
+	const currentColumns = ref<PickerOption[][]>([])
+	const columnsType = computed<PickerColumnType>(() => getColumnsType(props.columns))
+	// #ifndef APP-ANDROID
+	const selectedValues = ref<PickerModelValue[]>(modelValue.value?.slice(0) ?? [])
+	// #endif
+	// #ifdef APP-ANDROID
+	const selectedValues = ref<PickerModelValue[]>(modelValue.value!.slice(0))
+	// #endif
+	const hasTopBar = computed(() => props.toolbarPosition == 'top' || hasStrValue(props.title))
+	const isSafeAreaInsetBottom = computed<boolean>(() => props.safeAreaInsetBottom ?? props.usePopup)
+	const hasConfirm = computed<boolean>(() => hasStrValue(props.confirmButtonText))
+	const hasCancel = computed<boolean>(() => hasStrValue(props.cancelButtonText))
+	const isVisible = computed<boolean>(() => props.usePopup ? show.value : true)
+	const hasOptions = computed(() => currentColumns.value.some(option => option.length > 0))
+	const realShow = ref(false)
+	const pickerRef = shallowRef<UniElement | null>(null)
+	const duration = ref(300)
+	let openTimer : number | null = null
+	let closeTimer : number | null = null
+
+	// #ifdef APP
+	const primaryColor = useCssVar('--rice-primary-color', pickerRef)
+	// #endif
+
+	const cancelButtonTextColor = computed(() => {
+		// #ifdef APP
+		return isDark.value ? '#f5f5f5' : primaryColor.value
+		// #endif
+		// #ifndef APP
+		return isDark.value ? '#f5f5f5' : 'inherit'
+		// #endif
+	})
+
+	const getTextStyle = (option : PickerOption, index : number) => {
+		const css = new Map<string, string | number>()
+		const selected = getColumnsByValue(selectedValues.value, index)
+		const isSelected = isSameValue(selected, option.value)
+		if (option.disabled == true && isSelected) {
+			css.set('color', isDark.value ? 'rgba(255, 255, 255, .35)' : 'rgba(0, 0, 0, .26)')
+		} else {
+			css.set('color', isDark.value ? '#f5f5f5' : '#323233')
+		}
+		// #ifndef APP-ANDROID
+		if (isSelected) css.set('font-weight', 'bold')
+		css.set('font-size', addUnit(props.fontSize!))
+		// #endif
+		// #ifdef APP-ANDROID
+		const fontSize = getPxNum(props.fontSize)
+		css.set('font-size', isSelected ? fontSize + 1 : fontSize)
+		// #endif
+		return css
+	}
+
+
+
+	// #ifdef APP-ANDROID
+
+	const columnItemRef = shallowRef<UniElement[]>([])
+	let renderTimer : number | null = null
+
+	const getColumnHeight = (item : PickerOption[]) => {
+		const css = new Map<string, string>()
+		css.set('height', item.length * indicatorHeight.value + 'px')
+		return css
+	}
+
+	const updateColumnItem = () => {
+		if (!isVisible.value) return
+		for (let i = 0; i < columnItemRef.value.length; i++) {
+			const dom = columnItemRef.value[i]
+			const column = currentColumns.value.length <= i
+				? [] as PickerOption[]
+				: currentColumns.value[i]
+			const ctx = dom!.getDrawableContext()!
+			ctx.reset()
+			ctx.textAlign = 'center'
+			const height = indicatorHeight.value * column.length
+			const oneHeight = height / column.length
+			const rect = dom.getBoundingClientRect()
+			const x = rect.width / 2
+			for (let j = 0; j < column.length; j++) {
+				const style = getTextStyle(column[j], i)
+				const fontSize = style.get('font-size') as number
+				const y = oneHeight * j + fontSize + (oneHeight - fontSize) * 0.4
+				ctx.fillStyle = style.get('color') as string
+				ctx.font = fontSize + 'px'
+				let text = column[j].text
+				if (typeof text == 'number') text = text.toString()
+				ctx.fillText(text, x, y)
+			}
+			ctx.update()
+		}
+	}
+
+
+	watch(isDark, () => {
+		updateColumnItem()
+	})
+
+	// #endif
+
+
+	function updateSelectedValue(newVal : PickerModelValue[], updateModelValue = true) {
+		if (!isSameValue(newVal, selectedValues.value)) {
+			selectedValues.value = newVal.slice(0)
+		}
+		if (updateModelValue && !isSameValue(newVal, modelValue.value)) {
+			modelValue.value = newVal.slice(0)
+		}
+	}
+
+
+	const setCurrentColumns = async () => {
+		if (!isVisible.value) return
+		const newValues = selectedValues.value.slice()
+		const columns = props.columns
+		currentColumns.value = columnsType.value == 'cascade'
+			? formatCascadeColumns(columns, newValues)
+			: columns
+		for (let i = 0; i < currentColumns.value.length; i++) {
+			const options = currentColumns.value[i]
+			const value = getColumnsByValue(newValues, i)
+			const isExit = isOptionExist(options, value)
+			if (!isExit) {
+				const newVal = (getFirstEnabledOption(options)?.value) as PickerModelValue
+				if (i >= newValues.length) {
+					newValues.push(newVal)
+				} else {
+					newValues[i] = newVal
+				}
+			}
+		}
+		updateSelectedValue(newValues)
+
+		// #ifdef APP-ANDROID
+		await nextTick()
+		if (renderTimer != null) clearTimeout(renderTimer!)
+		renderTimer = setTimeout(() => updateColumnItem(), 50)
+		// #endif
+
+	}
+
+
+
+	const selectedIndex = computed(() => {
+		return currentColumns.value.map((option, optionIndex) => {
+			const value = getColumnsByValue(selectedValues.value, optionIndex)
+			return option.findIndex(v => isSameValue(v.value, value))
+		})
+	})
+
+	const getSelectedOptions = () => {
+		const list = currentColumns.value.map((options, optionsIndex) => {
+			return findOptionByValue(options, selectedValues.value[optionsIndex]) ?? ({ text: '', value: '' } as PickerOption)
+		})
+		return list
+	}
+
+	const getEventParmas = () => {
+		return {
+			selectedValues: selectedValues.value.slice(0),
+			selectedOptions: getSelectedOptions(),
+			selectedIndex: selectedIndex.value.slice(0),
+		} as PickerEvent
+	}
+
+	const onPickerChange = (e : UniPickerViewChangeEvent) => {
+		const values = e.detail.value
+		if (isSameValue(selectedIndex.value, values)) return
+		const currentValues = selectedValues.value.slice(0)
+		values.forEach((value, index) => {
+			const options = currentColumns.value.length <= index
+				? [] as PickerOption[]
+				: currentColumns.value[index]
+			const option = getOptionByIndex(options, value)
+			const optionValue = option?.value as PickerModelValue
+			if (currentValues.length <= index) {
+				currentValues.push(optionValue)
+			} else {
+				currentValues[index] = optionValue
+			}
+		})
+		updateSelectedValue(currentValues)
+		if (columnsType.value == 'cascade') {
+			setCurrentColumns()
+		}
+		nextTick(() => {
+			emit('change', getEventParmas())
+		})
+	}
+
+	const confirm = () => {
+		if (props.closeOnClickConfirm && props.usePopup) {
+			show.value = false
+		}
+		emit('confirm', getEventParmas())
+	}
+
+	const cancel = () => {
+		if (props.closeOnClickCancel && props.usePopup) {
+			show.value = false
+		}
+		emit('cancel', getEventParmas())
+	}
+
+	const open = async () => {
+		realShow.value = true
+		setCurrentColumns()
+		await nextTick()
+		if (openTimer != null) clearTimeout(openTimer!)
+		openTimer = setTimeout(() => {
+			pickerRef.value?.style.setProperty('transition-duration', `${duration.value}ms`)
+			pickerRef.value?.style.setProperty('transform', 'translate(0px, 0px)')
+		}, 30)
+	}
+
+	const close = () => {
+		pickerRef.value?.style.setProperty('transform', 'translate(0px, 100%)')
+		if (closeTimer != null) clearTimeout(closeTimer!)
+		closeTimer = setTimeout(() => {
+			realShow.value = false
+		}, duration.value)
+	}
+
+	watch(show, (newVal : boolean) => {
+		if (props.usePopup == false) return
+		if (newVal && !realShow.value) {
+			open()
+		}
+		if (!newVal && realShow.value) {
+			close()
+		}
+	}, {
+		immediate: true,
+	})
+
+	watch(() : PickerOption[][] => props.columns, async () => {
+		await nextTick()
+		setCurrentColumns()
+	}, {
+		deep: true,
+		immediate: true
+	})
+
+	watch(modelValue, (newVal : PickerModelValue[]) => {
+		if (!isSameValue(newVal, selectedValues.value))
+			updateSelectedValue(newVal, false)
+	}, {
+		deep: true,
+	})
+
+	watch(selectedValues, async (newVal : PickerModelValue[], oldVal : PickerModelValue[]) => {
+		if (!isSameValue(newVal, oldVal)) {
+			await nextTick()
+			setCurrentColumns()
+		}
+	}, {
+		deep: true,
+	})
+
+
+
+	const pickerViewStyle = computed(() => {
+		const css = new Map<string, string>()
+		const height = indicatorHeight.value * props.visibleOptionNum
+		css.set('height', `${height}px`)
+		return css
+	})
+
+	const pickerStyle = computed(() => {
+		const css = new Map<string, string | number>()
+		if (props.usePopup) {
+			css.set('z-index', props.zIndex)
+		}
+		// #ifndef WEB
+		if (isSafeAreaInsetBottom.value) {
+			css.set('padding-bottom', safeBottom.value + 'px')
+		}
+		// #endif
+		return css
+	})
+
+	const pickerClass = computed(() => {
+		return [
+			ns.b(''),
+			ns.theme(),
+			ns.is('popup', props.usePopup == true),
+			ns.is('padding-top', slots['top'] == null && !hasTopBar.value),
+			//#ifdef WEB
+			ns.is('rice-safe-area-bottom', isSafeAreaInsetBottom.value)
+			//#endif
+		]
+	})
+
+	const indicatorBorderColor = computed(() => isDark.value ? '#3a3a3c' : '#e5e5e5')
+
+	const indicatorStyle = computed<string>(() => {
+		const base = `height:${indicatorHeight.value}px;background-color: transparent;`
+
+		// #ifndef WEB
+		return base + `border-top:1rpx solid ${indicatorBorderColor.value};border-bottom:1rpx solid ${indicatorBorderColor.value}`
+		// #endif
+
+		// #ifdef WEB
+		return base
+		// #endif
+	})
+
+
+	// #ifndef APP-ANDROID
+
+	const columnItemStyle = computed(() => {
+		const css = new Map<string, string>()
+		css.set('height', `${indicatorHeight.value}px`)
+		return css
+	})
+
+
+	// #endif
+
+
+	onUnmounted(() => {
+		if (openTimer != null) clearTimeout(openTimer!)
+		if (closeTimer != null) clearTimeout(closeTimer!)
+		// #ifdef APP-ANDROID
+		if (renderTimer != null) clearTimeout(renderTimer!)
+		// #endif
+	})
+</script>
+
+<style scoped lang="scss">
+	.rice-picker {
+		position: relative;
+		background-color: var(--rice-picker-background);
+		box-sizing: border-box;
+
+		&--popup {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			border-radius: 12px 12px 0 0;
+			transition-property: transform;
+			transform: translateY(100%);
+		}
+
+		&--padding-top {
+			padding-top: var(--rice-padding-md);
+		}
+
+		&__option {
+			flex-direction: row;
+			align-items: center;
+			justify-content: center;
+
+			&__text {
+				color: var(--rice-text-color);
+				font-size: var(--rice-font-size-md);
+			}
+
+			&--disabled {
+				color: var(--rice-picker-disabled-text-color);
+			}
+		}
+
+		&__top {
+			position: relative;
+			flex-direction: row;
+			height: 48px;
+			align-items: center;
+			justify-content: space-between;
+
+		}
+
+		&__title {
+			position: absolute;
+			left: 50%;
+			transform: translateX(-50%);
+			/* #ifdef APP */
+			max-width: 200px;
+			/* #endif */
+
+			/* #ifndef APP */
+			max-width: 50%;
+			/* #endif */
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			font-size: var(--rice-font-size-md);
+			color:var(--rice-text-color);
+			font-weight: bold;
+		}
+
+		&__cancel,
+		&__confirm {
+			padding: 5px 16px;
+			font-size: var(--rice-font-size-basic);
+		}
+
+		&__cancel {
+			color: var(--rice-text-color-2);
+		}
+
+		&__confirm {
+			color: var(--rice-primary-color);
+		}
+
+
+		&__bottom {
+			flex-direction: row;
+			align-items: center;
+			justify-content: center;
+			padding: var(--rice-padding-md);
+
+			/* #ifndef APP */
+			color: var(--rice-primary-color);
+
+			/* #endif */
+			:deep(.rice-button__text) {
+				font-weight: bold;
+			}
+		}
+
+		&__empty {
+			padding: 0 var(--rice-padding-md);
+			box-sizing: border-box;
+			align-items: center;
+			justify-content: center;
+
+			&__text {
+				text-align: center;
+				color: var(--rice-font-size-basic);
+				color: var(--rice-text-color-2);
+			}
+		}
+
+		&__loading {
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			z-index: 9;
+			align-items: center;
+			justify-content: center;
+			background-color: var(--rice-picker-loading-background);
+		}
+
+
+
+		/* #ifdef WEB */
+		.uni-picker-view-indicator::before,
+		.uni-picker-view-indicator::after {
+			border-top-color: v-bind(indicatorBorderColor);
+			border-bottom-color: v-bind(indicatorBorderColor);
+			color: v-bind(indicatorBorderColor);
+		}
+
+		/* #endif */
+	}
+</style>

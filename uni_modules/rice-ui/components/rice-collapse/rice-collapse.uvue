@@ -1,0 +1,108 @@
+<template>
+	<view :class="collapseClass" :style="customStyle">
+		<slot></slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description rice-collapse 通过折叠面板收纳内容区域
+	 * @property {String|Array} modelValue 当前活动面板，在手风琴模式下类型是`string|number`，非手风琴模式下类型是`(number | string)[]`
+	 * @property {Boolean} accordion 是否手风琴模式 默认false
+	 * @property {Boolean} border 是否显示上下边框，默认 false
+	 * @property {Number} duration 动画过渡时间，单位ms，默认 250 
+	 * @property {Object} customStyle 自定义样式
+	 */
+
+	import { useNamespace } from '../../libs/use';
+	import { CollapseProps, CollapseInjectKey, CollapseActiveName } from "./type.uts"
+	import { collapseInjectKey } from "./index"
+
+	defineOptions({
+		name: 'rice-collapse'
+	})
+
+	const ns = useNamespace('collapse')
+
+	const emit = defineEmits<{
+		change : [names: CollapseActiveName[] | CollapseActiveName]
+	}>()
+
+	const props = withDefaults(defineProps<CollapseProps>(), {
+		accordion: false,
+		border: false,
+		duration: 250,
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const modelValue = defineModel({
+		type: [Array, Number, String] as PropType<CollapseActiveName[] | CollapseActiveName>,
+		default: () : CollapseActiveName[] => ([])
+	})
+
+
+	const castArray = () : CollapseActiveName[] => {
+		// #ifndef APP
+		if (modelValue.value == null) return [] as CollapseActiveName[]
+		// #endif
+		return Array.isArray(modelValue.value)
+			? modelValue.value.slice(0)
+			: [modelValue.value!]
+	}
+
+	const activeNames = ref<CollapseActiveName[]>(castArray())
+
+	const setActiveNames = (names : CollapseActiveName[]) => {
+		activeNames.value = names
+		const value = props.accordion ? activeNames.value[0] : activeNames.value
+		modelValue.value = value
+		emit('change', value)
+	}
+
+	const handleItemClick = (name : CollapseActiveName) => {
+		if (props.accordion) {
+			setActiveNames([activeNames.value.length > 0 && activeNames.value[0] == name ? '' : name])
+		} else {
+			const _activeNames = activeNames.value.slice(0)
+			const index = _activeNames.indexOf(name)
+			if (index > -1) {
+				_activeNames.splice(index, 1)
+			} else {
+				_activeNames.push(name)
+			}
+			setActiveNames(_activeNames)
+		}
+	}
+
+
+	watch(modelValue, () => {
+		activeNames.value = castArray()
+	}, {
+		deep: true
+	})
+
+
+	provide(collapseInjectKey, {
+		activeNames,
+		duration: toRef<number>(() => props.duration),
+		handleItemClick
+	} as CollapseInjectKey)
+
+	const collapseClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+			ns.is('border', props.border),
+		]
+	})
+</script>
+
+<style scoped lang="scss">
+	@import "../../libs/style/mixins/hairline";
+
+	.rice-collapse {
+		&--border {
+			@include hairline-top-bottom;
+		}
+	}
+</style>

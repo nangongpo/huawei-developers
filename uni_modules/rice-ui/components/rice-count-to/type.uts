@@ -1,0 +1,16 @@
+
+export type StartCountFn = (timestamp : number) => void
+
+export type CountToProps = {
+	startVal ?: string | number,
+	endVal ?: string | number,
+	duration ?: number,
+	autoplay ?: boolean,
+	restart?:boolean,
+	decimals ?: number,
+	color ?: string,
+	fontSize ?: string | number,
+	bold ?: boolean,
+	separator ?: string,
+	customStyle ?: UTSJSONObject,
+}

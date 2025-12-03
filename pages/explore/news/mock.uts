@@ -1,0 +1,18 @@
+import { ItemType } from './type.uts'
+import logo from '@/static/logo.png'
+
+// export const bannerData: string[] = []
+
+const scrollData: ItemType[] = []
+for (let index = 0; index < 10; index++) {
+	scrollData.push({
+		id: index + 1,
+		icon: logo,
+		title: '鸿蒙新闻行业解决方案助力行业应用体验变革，开发效率提升50%',
+		url: 'https://www.baidu.com/' // https://developer.huawei.com/consumer/cn/information/news/c7949571d5654e97a596df4e2ad2a2cb
+	})
+}
+
+export {
+	scrollData
+}

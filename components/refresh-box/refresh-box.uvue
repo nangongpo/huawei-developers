@@ -1,0 +1,39 @@
+<!-- 自定义下拉刷新， 配合 scroll-view 使用 -->
+<script setup lang="uts">
+	import { Props } from './type.uts'
+	import loadingGif from '@/static/loading.gif'
+	
+	const props = withDefaults(defineProps<Props>(), {
+		state: 0
+	})
+
+	const text = ['下拉刷新', '松开刷新', '正在刷新', ""]
+</script>
+
+<template>
+	<view class="refresh-box">
+		<image v-if="state == 2" class="refresh-icon" :src="loadingGif" mode="widthFix"></image>
+		<text class="tip-text">{{text[state]}}</text>
+	</view>
+</template>
+
+<style scoped>
+  .refresh-box {
+    justify-content: center;
+    align-items: center;
+    flex-direction: row;
+    width: 100%;
+    height: 60px;
+  }
+
+  .refresh-icon {
+    width: 32px;
+    height: 32px;
+    margin: 5px;
+  }
+
+  .tip-text {
+    color: #888;
+    font-size: 12px;
+  }
+</style>

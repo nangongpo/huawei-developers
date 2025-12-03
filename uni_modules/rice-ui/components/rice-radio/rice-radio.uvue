@@ -1,0 +1,261 @@
+<template>
+	<view :class="radioClass" :style="customStyle" ref="checkboxRef" @click.stop="handleClick">
+		<view v-if="_iconPosition=='right'" :class="labelClass">
+			<slot :checked="isChecked" :disabled="isDisabled">
+				<text :class="textClass" :style="textStyle">{{label}}</text>
+			</slot>
+		</view>
+		<slot name="icon" :checked="isChecked" :disabled="isDisabled">
+			<view :class="iconClass" :style="iconBoxStyle" ref="iconBoxRef">
+				<rice-icon v-if="isChecked" name="checked" color="#fff" :size="_iconSize"
+					:custom-style="{transform: 'scale(0.6)'}" />
+			</view>
+		</slot>
+		<view v-if="_iconPosition=='left'" :class="labelClass">
+			<slot :checked="isChecked" :disabled="isDisabled">
+				<text :class="textClass" :style="textStyle">{{label}}</text>
+			</slot>
+		</view>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Radio
+	 * @property {String|Number|Boolean} modelValue 选中项绑定的值
+	 * @property {String|Number|Boolean} value 选中状态的值
+	 * @property {String} label label文字
+	 * @property {Boolean} disabled 是否禁用
+	 * @property {Boolean} readonly 是否只读
+	 * @property {String} checkedColor 选中状态下的颜色,如设置此值，将会覆盖radio-group的checkedColor值
+	 * @property {String|Number} iconSize icon的大小,如设置此值，将会覆盖radio-group的iconSize值
+	 * @property {String|Number} labelSize label文字的大小,如设置此值，将会覆盖radio-group的labelSize值
+	 * @property {String} labelColor label文字的颜色,如设置此值，将会覆盖radio-group的labelColor值
+	 * @property {String} shape 形状，如设置此值，将会覆盖radio-group的shape值
+	 * @value square 方形
+	 * @value round 圆形 （默认值）
+	 * @property {String} iconPosition 勾选图标的对齐方式，默认 left-左边，可选right-右边,如设置此值，将会覆盖radio-group的iconPosition
+	 * @value left 左边
+	 * @value right 右边
+	 * @property {Boolean} spaceBetween 两端对齐,如设置此值，将会覆盖radio-group的spaceBetween
+	 * @property {Object} customStyle 自定义style
+	 */
+	import { useCssVar, useNamespace } from '../../libs/use';
+	import { addUnit, hasStrValue, isSameValue, debugWarn } from '../../libs/utils';
+	import { isDark } from "../../libs/store";
+	import { formDisabledInjectKey, formReadonlyInjectKey } from "../rice-form"
+	import { RadioValueType, RadioGroupProvide, defDirection, defIconPosition, defShape, radioGroupInjectKey } from '../rice-radio-group';
+	import { RadioProps } from './type.uts';
+
+	defineOptions({
+		name: 'rice-radio'
+	})
+
+	const ns = useNamespace('radio')
+	const emit = defineEmits<{
+		change : [value: RadioValueType],
+	}>()
+
+	const slot = defineSlots<{
+		default(props : { checked : boolean, disabled : boolean }) : any,
+		icon(props : { checked : boolean, disabled : boolean }) : any,
+	}>()
+
+	const props = withDefaults(defineProps<RadioProps>(), {
+		disabled: false,
+		readonly: false,
+		spaceBetween: null,
+		customStyle: () : UTSJSONObject => ({}),
+	})
+
+
+	const radioGroup = inject<RadioGroupProvide | null>(radioGroupInjectKey, null)
+	const formDisabled = inject<Ref<boolean | null> | null>(formDisabledInjectKey, null)
+	const formReadonly = inject<Ref<boolean | null> | null>(formReadonlyInjectKey, null)
+
+	const isChecked = computed<boolean>(() => radioGroup != null ? isSameValue(props.value, radioGroup.modelValue.value) : false)
+	const isDisabled = computed<boolean>(() => (formDisabled?.value ?? false) || props.disabled || (radioGroup?.disabled.value ?? false))
+	const isReadonly = computed<boolean>(() => (formReadonly?.value ?? false) || props.readonly || (radioGroup?.readonly.value ?? false))
+	const _iconPosition = computed(() => props.iconPosition ?? radioGroup?.iconPosition.value ?? defIconPosition)
+	const _iconSize = computed(() => props.iconSize ?? radioGroup?.iconSize.value ?? '20px')
+
+	const handleClick = (e : UniPointerEvent) => {
+		e.stopPropagation()
+		const value = props.value
+		if (isReadonly.value || isDisabled.value || radioGroup == null || value == null) return
+		if (!isSameValue(value, radioGroup.modelValue.value)) {
+			radioGroup.updateValue!(value)
+		}
+	}
+
+	const checkboxRef = shallowRef<UniElement | null>(null)
+
+	// #ifdef APP
+	const borderColor = useCssVar('--rice-radio-border-color', checkboxRef)
+	const disabledBorderColor = useCssVar('--rice-radio-disabled-border-color', checkboxRef)
+	// #endif
+
+
+	const iconBoxStyle = computed(() => {
+		const css = new Map<string, string>()
+		const size = props.iconSize ?? radioGroup?.iconSize.value
+		if (size != null) {
+			const width = addUnit(size)
+			css.set('height', width)
+			css.set('width', width)
+		}
+
+		const checkedColor = props.checkedColor ?? radioGroup?.checkedColor.value
+
+		if (hasStrValue(checkedColor)) {
+			if (isChecked.value) {
+				css.set('background-color', checkedColor!)
+				css.set('border', `1px solid ${checkedColor!}`)
+			}
+			// #ifdef APP
+			else {
+				css.set('border', `1px solid ${isDisabled.value ? disabledBorderColor.value : borderColor.value}`)
+			}
+			// #endif
+
+		}
+
+		return css
+	})
+
+	const textStyle = computed(() => {
+		const css = new Map<string, string>()
+		const labelSize = props.labelSize ?? radioGroup?.labelSize.value
+		const labelColor = props.labelColor ?? radioGroup?.labelColor.value
+		if (hasStrValue(labelSize)) css.set('font-size', addUnit(labelSize!))
+		if (hasStrValue(labelColor) && !isDisabled.value) css.set('color', labelColor!)
+		return css
+	})
+
+	const radioClass = computed(() => {
+		const isSpace = props.spaceBetween ?? radioGroup?.spaceBetween.value
+		return [
+			ns.b(""),
+			ns.theme(),
+			ns.is('row', radioGroup?.direction.value == 'row'),
+			ns.is('space-between', isSpace == true),
+
+		]
+	})
+
+	const labelClass = computed(() => {
+		return [
+			ns.e('label'),
+			ns.e(`label--${_iconPosition.value}`)
+		]
+	})
+
+	const iconClass = computed(() => {
+		const shape = props.shape ?? radioGroup?.shape.value ?? 'round'
+		return [
+			ns.e('icon'),
+			ns.is('__icon--round', shape == 'round'),
+			ns.is('__icon--checked', isChecked.value),
+			ns.is('__icon--disabled', isDisabled.value && !isChecked.value),
+			ns.is('__icon--checked--disabled', isDisabled.value && isChecked.value),
+		]
+	})
+
+	const textClass = computed(() => {
+		return [
+			ns.e("label__text"),
+			ns.is("__label__text--disabled", isDisabled.value)
+		]
+	})
+
+	if (radioGroup == null) {
+		debugWarn('Radio', '<Radio> must be used with <RadioGroup>')
+	}
+</script>
+<style scoped lang="scss">
+	.rice-radio {
+		flex-direction: row;
+		align-items: center;
+
+
+		&__icon {
+			flex-direction: row;
+			align-items: center;
+			justify-content: center;
+			/* #ifndef APP */
+			transition: all 100ms ease-in-out;
+			/* #endif */
+			width: 20px;
+			height: 20px;
+			border: 1px solid var(--rice-radio-border-color);
+			border-radius: 4px;
+			background-color: transparent;
+
+
+			&--disabled {
+				background-color: var(--rice-radio-disabled-background);
+				border: 1px solid var(--rice-radio-disabled-border-color);
+				/* #ifdef WEB */
+				cursor: not-allowed;
+				/* #endif */
+			}
+
+			&--checked {
+				background-color: var(--rice-primary-color);
+				border: 1px solid var(--rice-primary-color);
+
+			}
+
+			&--checked--disabled {
+				background-color: var(--rice-primary-color);
+				border: 1px solid var(--rice-primary-color);
+				/* #ifndef APP-HARMONY */
+				opacity: 0.4;
+				/* #endif */
+				/* #ifdef APP-HARMONY */
+				opacity: 0.6;
+				/* #endif */
+			}
+
+
+			&--round {
+				border-radius: 999px;
+			}
+
+		}
+
+		&__label {
+			flex: 0 1 auto;
+
+			&--left {
+				padding-left: 8px;
+			}
+
+			&--right {
+				padding-right: 8px;
+			}
+
+			&__text {
+				font-size: var(--rice-font-size-basic);
+				color: var(--rice-text-color);
+
+				&--disabled {
+					color: var(--rice-radio-label-disabled-color);
+					/* #ifdef WEB */
+					cursor: not-allowed;
+					/* #endif */
+				}
+			}
+		}
+
+		&--row {
+			margin-right: var(--rice-padding-sm);
+			flex: 0 1 auto;
+		}
+
+		&--space-between {
+			justify-content: space-between;
+		}
+
+	}
+</style>

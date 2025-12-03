@@ -1,0 +1,296 @@
+<template>
+	<view :class="searchClass" :style="[searchStyle,customStyle]">
+		<slot name="left"></slot>
+		<view :class="wrapperClass" :style="wrapperStyle">
+			<slot name="label" v-if="$slots['label']!=null||hasStrValue(label)">
+				<text class="rice-search__label">{{label}}</text>
+			</slot>
+			<slot v-if="$slots['leftIcon']!=null||hasStrValue(leftIcon)" name="leftIcon">
+				<rice-icon :name="leftIcon" :size="leftIconSize" :color="leftIconColor" @click="clickLeftIcon" />
+			</slot>
+			<input v-model="modelValue" type="search" inputmode="search" :maxlength="maxlength" confirm-type="search"
+				:focus="focus" :disabled="disabled" :holdKeyboard="holdKeyboard" :placeholder="placeholder"
+				:placeholder-style="_placeholderStyle" :class="inputClass" :style="inputStyle" @input="onInput" @focus="onFocus"
+				@blur="onBlur" @confirm="onConfirm" @keyboardheightchange="onKeyboardheightchange" @click="handleClick" />
+			<slot v-if="$slots['rightIcon']!=null||hasStrValue(rightIcon)" name="rightIcon">
+				<rice-icon :name="rightIcon" :size="rightIconSize" :color="rightIconColor" @click="clickRightIcon" />
+			</slot>
+			<rice-icon v-if="isShowClearable" :name="clearIcon" size="17px" :custom-style="clearIconStyle" @click="onClear" />
+		</view>
+		<slot v-if="showAction" name="action">
+			<text class="rice-search__action" :style="actionStyle" @click="clickAction">{{actionText}}</text>
+		</slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+ * @description Search
+ * @property {String} modelValue 绑定的值
+ * @property {String} label 搜索框左侧文本
+ * @property {String} shape 搜索框形状
+ * @value square 方形（默认值）
+ * @value round 圆角
+ * @property {String} bgColor 搜索框外部背景色
+ * @property {String} inputColor 搜索框的背景颜色
+ * @property {String|Number} fontSize 输入框字体大小
+ * @property {String} color 输入框字体颜色
+ * @property {String|Number} height 输入框的高度
+ * @property {Number} maxlength 输入的最大字符数
+ * @property {Boolean} holdKeyboard focus时，点击页面的时候不收起键盘
+ * @property {String} placeholder 占位提示文字
+ * @property {String} placeholderStyle 指定 placeholder 的样式
+ * @property {Boolean} focus 是否聚焦
+ * @property {Boolean} clearable 是否启用清除图标，默认true
+ * @property {String} clearIcon 清除图标的name值
+ * @property {String} clearTrigger 显示清除图标的时机
+ * @value always 输入框值不为空时展示
+ * @value focus 输入框值不为空且聚焦时显示（默认值）
+ * @property {Boolean} showAction 是否在搜索框右侧显示搜索按钮
+ * @property {String} actionText 按钮的文字默认 搜索
+ * @property {String|Number} actionSize 按钮文字的大小
+ * @property {String} actionColor 按钮文字的颜色
+ * @property {Boolean} disabled 是否禁用
+ * @property {String} inputAlign 输入框对齐方式
+ * @value left 左对齐 （默认值）
+ * @value center 居中对齐
+ * @value right 右对齐
+ * @property {String} leftIcon 输入框左侧图标名称，为空字符串时不展示
+ * @property {String} rightIcon 输入框右侧图标名称，为空字符串时不展示
+ * @property {String|Number} leftIconSize 左侧图标大小
+ * @property {String} leftIconColor 左侧图标颜色
+ * @property {String|Number} rightIconSize 左侧图标大小
+ * @property {String} rightIconColor 右侧图标颜色
+ * @property {Object} customStyle 自定义样式
+ */
+	import { useNamespace } from '../../libs/use';
+	import { isDark } from "../../libs/store";
+	import { addUnit, hasStrValue } from "../../libs/utils";
+	import { SearchProps } from './type.uts';
+
+	defineOptions({
+		name: 'rice-search'
+	})
+
+	const ns = useNamespace('search')
+	const emit = defineEmits<{
+		input : [value: string],
+		search : [value: string],
+		focus : [event: UniInputFocusEvent],
+		blur : [event: UniInputBlurEvent],
+		keyboardheightchange : [event: UniInputKeyboardHeightChangeEvent],
+		clickInput : [event: UniPointerEvent],
+		clickLeftIcon : [value: string],
+		clickRightIcon : [value: string],
+		clickAction : [value: string],
+		clear : [],
+	}>()
+
+	const props = withDefaults(defineProps<SearchProps>(), {
+		shape: 'square',
+		maxlength: -1,
+		holdKeyboard: false,
+		placeholder: '请输入搜索关键字',
+		focus: false,
+		disabled: false,
+		clearable: true,
+		clearTrigger: 'focus',
+		clearIcon: 'clear',
+		leftIconSize: '16px',
+		rightIconSize: '16px',
+		showAction: false,
+		actionText: '搜索',
+		inputAlign: 'left',
+		leftIcon: 'search',
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const modelValue = defineModel({
+		type: String,
+		default: ""
+	})
+
+	const isFocus = ref(false)
+
+	const isShowClearable = computed<boolean>(() => {
+		if (props.disabled) return false
+		const shouldTrigger = props.clearTrigger == 'focus' ? isFocus.value : true
+		return props.clearable && modelValue.value != "" && shouldTrigger
+	})
+
+	const onClear = () => {
+		if (props.disabled) return
+		modelValue.value = ""
+		emit('clear')
+	}
+
+	const handleClick = (e : UniPointerEvent) => {
+		emit('clickInput', e)
+	}
+
+	const onInput = (e : UniInputEvent) => {
+		emit('input', e.detail.value)
+	}
+
+	const onFocus = (e : UniInputFocusEvent) => {
+		isFocus.value = true
+		emit('focus', e)
+	}
+
+	let timer : null | number = null
+	const onBlur = (e : UniInputBlurEvent) => {
+		//加个延迟，防止web等端清除按钮点击不到
+		timer = setTimeout(() => {
+			isFocus.value = false
+			emit('blur', e)
+		}, 100)
+
+	}
+
+	const onConfirm = (e : UniInputConfirmEvent) => {
+		emit('search', e.detail.value)
+	}
+
+	const onKeyboardheightchange = (e : UniInputKeyboardHeightChangeEvent) => {
+		emit('keyboardheightchange', e)
+	}
+
+	const clickLeftIcon = () => {
+		emit('clickLeftIcon', modelValue.value)
+	}
+
+	const clickRightIcon = () => {
+		emit('clickRightIcon', modelValue.value)
+	}
+
+	const clickAction = () => {
+		emit('clickAction', modelValue.value)
+	}
+
+	const searchStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (hasStrValue(props.bgColor)) css.set('background-color', props.bgColor!)
+		return css
+	})
+
+	const wrapperStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.height != null) css.set('height', addUnit(props.height!))
+		if (hasStrValue(props.inputColor)) css.set('background-color', props.inputColor!)
+		return css
+	})
+
+	const inputStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.fontSize != null) css.set('font-size', addUnit(props.fontSize!))
+		if (hasStrValue(props.color)) css.set('color', props.color!)
+		return css
+	})
+
+	const actionStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.actionSize != null) css.set('font-size', addUnit(props.actionSize!))
+		if (hasStrValue(props.actionColor)) css.set('color', props.actionColor!)
+		return css
+	})
+
+	const inputClass = computed(() => {
+		return [
+			ns.e('wrapper__input'),
+			ns.e(`wrapper__input--${props.inputAlign}`),
+		]
+	})
+
+	const _placeholderStyle = computed(() => {
+		let baseColor = isDark.value ? '#4d4d4d' : '#c8c9cc'
+		let css = `color:${baseColor};font-size:${addUnit(props.fontSize ?? '15px')};`
+		return css + (props.placeholderStyle ?? "")
+	})
+
+	const clearIconStyle = computed(() => {
+		return {
+			paddingLeft: '6px',
+		}
+	})
+
+	const searchClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+			//#ifdef WEB
+			ns.is('disabled', props.disabled),
+			//#endif
+		]
+	})
+
+	const wrapperClass = computed(() => {
+		return [
+			ns.e("wrapper"),
+			ns.e(`wrapper--${props.shape}`)
+		]
+	})
+
+	onUnmounted(() => {
+		if (timer != null) clearTimeout(timer!)
+	})
+</script>
+
+<style scoped lang="scss">
+	.rice-search {
+		flex-direction: row;
+		align-items: center;
+		background-color: var(--rice-search-background);
+		padding: 10px 12px;
+
+		&__label {
+			padding-right: 5px;
+			font-size: var(--rice-font-size-sm);
+			color: var(--rice-text-color);
+		}
+
+		&__wrapper {
+			flex: 1;
+			flex-direction: row;
+			align-items: center;
+			background-color: var(--rice-search-input-background);
+			height: 36px;
+			padding: 0 10px;
+			border-radius: 4px;
+
+			&__input {
+				flex: 1;
+				padding: 0 8px;
+				font-size: var(--rice-font-size-basic);
+				color: var(--rice-text-color);
+				height: 100%;
+				text-align: left;
+
+				&--center {
+					text-align: center;
+				}
+
+				&--right {
+					text-align: right;
+				}
+			}
+
+			&--round {
+				border-radius: 999px;
+			}
+		}
+
+
+		&__action {
+			padding-left: 10px;
+			font-size: var(--rice-font-size-sm);
+			color: var(--rice-text-color);
+		}
+
+		//#ifdef WEB
+		&--disabled {
+			cursor: not-allowed;
+		}
+
+		//#endif
+	}
+</style>

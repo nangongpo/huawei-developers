@@ -1,0 +1,72 @@
+{
+  "id": "5049431",
+  "name": "huawei-developers",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "6132663",
+      "name": "report",
+      "font_class": "report",
+      "unicode": "e919",
+      "unicode_decimal": 59673
+    },
+    {
+      "icon_id": "1236933",
+      "name": "wechat-moments",
+      "font_class": "wechat-moments",
+      "unicode": "e6e9",
+      "unicode_decimal": 59113
+    },
+    {
+      "icon_id": "8585447",
+      "name": "copy-link",
+      "font_class": "copy-link",
+      "unicode": "e6ce",
+      "unicode_decimal": 59086
+    },
+    {
+      "icon_id": "9186709",
+      "name": "wechat",
+      "font_class": "wechat",
+      "unicode": "e665",
+      "unicode_decimal": 58981
+    },
+    {
+      "icon_id": "248981",
+      "name": "scan",
+      "font_class": "scan",
+      "unicode": "e69a",
+      "unicode_decimal": 59034
+    },
+    {
+      "icon_id": "8106221",
+      "name": "settings",
+      "font_class": "settings",
+      "unicode": "e699",
+      "unicode_decimal": 59033
+    },
+    {
+      "icon_id": "40727213",
+      "name": "ellipsis-vertical",
+      "font_class": "ellipsis-vertical",
+      "unicode": "e612",
+      "unicode_decimal": 58898
+    },
+    {
+      "icon_id": "34453008",
+      "name": "left-arrow",
+      "font_class": "left-arrow",
+      "unicode": "e83d",
+      "unicode_decimal": 59453
+    },
+    {
+      "icon_id": "12161975",
+      "name": "bell",
+      "font_class": "bell",
+      "unicode": "e600",
+      "unicode_decimal": 58880
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+<template>
+	<view v-if="!single" :class="ns.b('')">
+		<slot />
+		<view v-if="showBadge" :class="contentClass" :style="[contentStyle,badgeStyle]">
+			<slot name="content">
+				<text v-if="hasStrValue(formatValue)" class="rice-badge__content__text"
+					:style="textStyle">{{formatValue}}</text>
+			</slot>
+		</view>
+	</view>
+	<!-- 单独使用，去掉一层多余的嵌套 -->
+	<view v-else :class="[ns.b(''),contentClass]" :style="[contentStyle,badgeStyle]">
+		<slot name="content">
+			<text v-if="hasStrValue(formatValue)" class="rice-badge__content__text" :style="textStyle">{{formatValue}}</text>
+		</slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Badge 徽标 按钮和图标上的数字或状态标记
+	 * @property {String|Number} value 显示值，`is-dot` 为 false时生效；为`0`时且 `show-zero` 为 `false` 时隐藏
+	 * @property {Number} max 最大值，大于 `max` 时显示为 `${max}+`。只有`value` 为数字类型时才起作用
+	 * @property {Boolean} isDot 是否显示小圆点  默认false
+	 * @property {Boolean} hidden 是否隐藏 `Badge` 默认 false
+	 * @property {String} type 主题类型 默认 error
+	 * @value primary 主要色
+	 * @value success 成功色
+	 * @value warning 警告色
+	 * @value error 错误色
+	 * @property {Boolean} showZero 数值为0时是否显示`Badge`
+	 * @property {String} bgColor 背景颜色，优先级高级 `type`
+	 * @property {String} color 文字颜色
+	 * @property {String|Number} fontSize 文字大小
+	 * @property {String} position `Badge` 的位置，默认 `top-right`
+	 * @value top-right 右上
+	 * @value top-left 左上
+	 * @value bottom-left 左下
+	 * @value bottom-right 右下
+	 * @property {Array} offset 偏移量，数组的两项分别对应水平向右和垂直向下的偏移量
+	 * @property {Boolean} absolute 是否绝对定位
+	 * @property {Object} badgeStyle 自定义`Badge`样式
+	 */
+
+	import { useNamespace } from '../../libs/use';
+	import { hasStrValue, addUnit } from '../../libs/utils';
+	import { BadgeProps } from "./type.uts"
+	defineOptions({
+		name: 'rice-badge'
+	})
+
+	const ns = useNamespace('badge')
+	const slots = defineSlots<{
+		default() : any,
+		content() : any,
+	}>()
+
+	const props = withDefaults(defineProps<BadgeProps>(), {
+		hidden: false,
+		showZero: true,
+		isDot: false,
+		type: 'error',
+		position: 'top-right',
+		offset: () : Array<number | string> => ([]),
+		badgeStyle: () : UTSJSONObject => ({})
+	})
+
+	const single = computed(() => slots['default'] == null)
+	const isAbsolute = computed(() => !single.value || props.absolute == true)
+
+	const formatValue = computed(() => {
+		if (props.isDot) return ""
+		if (typeof props.value == 'number' && typeof props.max == 'number') {
+			return props.max < props.value ? `${props.max}+` : props.value
+		}
+		return props.value
+	})
+
+
+	// #ifndef APP-ANDROID
+	const isNumZero = computed(() => props.value === 0)
+	// #endif
+
+	// #ifdef APP-ANDROID
+	const isNumZero = computed(() => props.value == 0)
+	// #endif
+
+	const showBadge = computed(() => !props.hidden && (props.isDot || props.showZero || !isNumZero.value))
+
+	const getOffsetUumString = (val : string) => {
+		return val.startsWith('-') ? addUnit(val.replace('-', '')) : `-${addUnit(val)}`;
+	}
+
+	const contentStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (hasStrValue(props.bgColor)) {
+			css.set('background-color', props.bgColor!)
+		}
+		if (props.offset.length > 0) {
+			const x = props.offset[0]
+			const y = props.offset.length >= 2 ? props.offset[1] : 0
+			if (!isAbsolute.value) {
+				css.set('margin-left', addUnit(x))
+				css.set('margin-top', addUnit(y))
+			} else {
+				const p = props.position.split('-')
+				const offsetY = p[0] //top bottom
+				const offsetX = p[1] // left right
+				if (typeof x == 'number') {
+					css.set(offsetX, addUnit(offsetX == 'left' ? x : -x))
+				} else {
+					css.set(offsetX, offsetX == 'left' ? addUnit(x) : getOffsetUumString(x as string))
+				}
+				if (typeof y == 'number') {
+					css.set(offsetY, addUnit(offsetY == 'top' ? y : -y))
+				} else {
+					css.set(offsetY, offsetY == 'top' ? addUnit(y) : getOffsetUumString(y as string))
+				}
+			}
+		}
+		return css
+	})
+
+	const textStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (hasStrValue(props.color)) {
+			css.set('color', props.color!)
+		}
+		if (hasStrValue(props.fontSize)) {
+			css.set('font-size', addUnit(props.fontSize!))
+		}
+		return css
+	})
+
+
+
+	const contentClass = computed(() => {
+		return [
+			ns.e("content"),
+			ns.m(props.type),
+			ns.is("fixed", isAbsolute.value),
+			ns.is("dot", props.isDot),
+			ns.m(isAbsolute.value ? props.position : ''),
+			ns.theme(),
+		]
+	})
+</script>
+
+<style scoped lang="scss">
+	@import "../../libs/style/let.scss";
+
+	.rice-badge {
+		position: relative;
+		overflow: visible;
+		/* #ifndef APP */
+		width: fit-content;
+		/* #endif */
+
+		&__content {
+			padding: 0px 4px;
+			min-width: 16px;
+			flex-direction: row;
+			align-items: center;
+			justify-content: center;
+			border-radius: 100px;
+			border: 1px solid #fff;
+			background-color: var(--rice-error-color);
+
+			&__text {
+				font-size: var(--rice-font-size-xs);
+				color: #fff;
+				white-space: nowrap;
+			}
+		}
+
+		&--fixed {
+			position: absolute;
+			z-index: 99;
+		}
+
+		&--dot {
+			height: 12px;
+			width: 12px;
+			border-radius: 12px;
+			padding: 0;
+			min-width: 0;
+		}
+
+		&--top-left {
+			top: 0;
+			left: 0;
+			transform: translate(-50%, -50%);
+		}
+
+		&--top-right {
+			top: 0;
+			right: 0;
+			transform: translate(50%, -50%);
+		}
+
+		&--bottom-left {
+			bottom: 0;
+			left: 0;
+			transform: translate(-50%, 50%);
+		}
+
+		&--bottom-right {
+			bottom: 0;
+			right: 0;
+			transform: translate(50%, 50%);
+		}
+
+		@each $theme,
+		$color in $theme-colors {
+			&--#{$theme} {
+				background-color: $color;
+			}
+		}
+
+	}
+</style>

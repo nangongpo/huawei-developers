@@ -1,0 +1,201 @@
+<template>
+	<view :class="formClass" :style="customStyle">
+		<slot></slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Form 表单，用于表单校验
+	 * @property {Any} model 表单数据对象
+	 * @property {Map<string, FormRules[]>} rules 表单校验规则
+	 * @property {String|Number} labelWidth 标签的宽度
+	 * @property {String} labelPosition 标签的位置
+	 * @value left 左侧（默认值）
+	 * @value right 右侧
+	 * @value top 顶部
+	 * @property {Object} labelStyle 自定义标签style，如文字大小和颜色
+	 * @property {Boolean} showRequired 是否显示必填的符号，默认根据rules规则显示
+	 * @property {String} requiredPosition 必填符号的位置
+	 * @value left 左侧（默认值）
+	 * @value right 右侧
+	 * @property {Boolean} showError 校验失败时是否显示错误信息
+	 * @property {Boolean} borderBottom 是否显示表单域的下划线边框，默认true
+	 * @property {Boolean} errorBottom 校验未通过时下边框是否标红，默认false
+	 * @property {Boolean} scrollToError 是否自动滚动到第一个校验不通过的字段，当前仅APP端支持，默认false
+	 * @property {String} disabled 是否禁用此表单中的所有组件
+	 * @property {String} readonly 是否只读此表单中的所有组件
+	 * @property {Object} errorStyle 错误信息区域的自定样式
+	 * @property {Object} customStyle 自定义样式
+	 */
+	import { useNamespace } from "../../libs/use";
+	import { hasStrValue, debugWarn } from "../../libs/utils";
+	import { formInjectKey, formDataInjectKey, formDisabledInjectKey, formReadonlyInjectKey } from "./index"
+	import { FormItemState, formItemContextInjectKey } from "../rice-form-item";
+	import { useFormData } from "./useForm"
+	import { FormProps, FormItemContext, FormItemContextProvide, FormRules, FormValidateErrors } from "./type.uts";
+
+	defineOptions({
+		name: 'rice-form'
+	})
+	const ns = useNamespace('form')
+	const props = withDefaults(defineProps<FormProps>(), {
+		labelPosition: 'left',
+		showRequired: null,
+		showError: true,
+		requiredPosition: 'left',
+		borderBottom: true,
+		errorBottom: false,
+		scrollToError: false,
+		disabled: false,
+		readonly: false,
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const formData = ref({})
+	const formItems = ref<FormItemContext[]>([])
+
+	//添加字段
+	const addField = (field : FormItemContext) => {
+		formItems.value.push(field)
+	}
+
+	//删除字段
+	const removeField = (field : FormItemContext) => {
+		if (hasStrValue(field.name)) {
+			formItems.value.splice(formItems.value.indexOf(field), 1)
+		}
+	}
+
+	//只校验指定的字段
+	const filterFields = (fields : FormItemContext[], normalized : string[]) => {
+		if (normalized.length == 0) return fields
+
+		return fields.filter(field =>
+			hasStrValue(field.name)
+			&& normalized.includes(field.name!)
+			&& typeof field.validate == 'function')
+	}
+
+	//获取要校验的字段
+	const getValidateFields = (normalized : string[]) => {
+		if (formItems.value.length == 0) return [] as FormItemContext[]
+		return filterFields(formItems.value, normalized)
+	}
+
+	/**
+	 * 滚动到指定的字段
+	 */
+	const scrollToField = (name : string) => {
+		// #ifdef APP
+		const field = formItems.value.find(v => v.name == name)
+		field?.scrollToField!()
+		// #endif
+		// #ifndef APP
+		debugWarn('FormItem', '当前scrollToField仅支持APP端')
+		// #endif
+	}
+
+	/**
+	 * 开始校验
+	 */
+
+	const runValidateField = async (normalized : string[]) : Promise<boolean | FormValidateErrors[]> => {
+		const fields = getValidateFields(normalized)
+		// 没有可校验的字段，直接校验成功
+		if (fields.length == 0) return true
+
+		const promises = fields
+			.map((item) : Promise<FormItemState> => item.validate('all'))
+		const results = await Promise.all(promises)
+		const errors = results
+			.filter(field => field.rule != null && field.status != 'passed')
+			.map(field => {
+				return {
+					name: field.name!,
+					rule: field.rule!,
+					message: field.validateMessage,
+					label: field.label,
+				} as FormValidateErrors
+			})
+
+		if (props.scrollToError == true && errors.length > 0) {
+			scrollToField(errors[0].name)
+		}
+
+		return errors.length == 0 ? true : errors
+
+	}
+
+	watch(() : any | null => props.model, (newVal : any | null) => {
+		const newData = useFormData(newVal)
+		newData.toMap().forEach((value, key) => {
+			if (formData.value[key] != value) {
+				formData.value[key] = value
+			}
+		})
+	}, {
+		deep: true,
+		immediate: true
+	})
+
+
+	provide(formInjectKey, props)
+	provide(formDataInjectKey, formData)
+	provide(formDisabledInjectKey, toRef<boolean>(() => props.disabled))
+	provide(formReadonlyInjectKey, toRef<boolean>(() => props.readonly))
+	provide(formItemContextInjectKey, {
+		formItems,
+		addField,
+		removeField,
+	} as FormItemContextProvide)
+
+	/**
+	 * 对整个表单的内容进行验证，返回 Promise，为true表示校验通过，否则返回未校验通过的字段信息
+	 */
+	const validate = async () : Promise<boolean | FormValidateErrors[]> => {
+		return await runValidateField([] as string[])
+	}
+
+	/**
+	 * 验证具体的字段，返回 Promise，为true表示校验通过，否则返回未校验通过的字段信息
+	 */
+	const validateFields = async (params : string[]) : Promise<boolean | FormValidateErrors[]> => {
+		return await runValidateField(params)
+	}
+
+	/**
+	 * 清理某个表单验证信息。
+	 */
+	const clearValidate = (params : string[]) => {
+		formItems.value
+			.filter(field => hasStrValue(field.name) && params.includes(field.name!))
+			.map(field => field.clearValidate())
+	}
+
+	/**
+	 * 清理表单验证信息。
+	 */
+	const clearAllValidate = () => {
+		formItems.value.map(field => field.clearValidate())
+	}
+
+	const formClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme()
+		]
+	})
+
+	defineExpose({
+		validate, //表单校验
+		validateFields, //校验指定的字段，如 ['name','age']
+		scrollToField, //滚动到指定的字段位置 如 'name'
+		clearValidate, // 清除指定字段的校验信息，如 ['name','age']
+		clearAllValidate // 清除全部的校验信息
+	})
+</script>
+
+<style scoped lang="scss">
+	.rice-form {}
+</style>

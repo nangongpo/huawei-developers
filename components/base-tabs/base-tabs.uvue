@@ -1,0 +1,92 @@
+<script setup lang="uts">
+	import { TabsProps, TabsOptions, TabsClickTab, TabsChange } from './type.uts'
+	
+	defineOptions({
+		name: 'base-tabs'
+	})
+	
+	const emit = defineEmits<{
+		clickTab : [TabsClickTab],
+		change : [TabsChange]
+	}>()
+	
+	const props = withDefaults(defineProps<TabsProps>(), {
+		gutter: 10,
+		shrink: false,
+		lineWidth: '20px',
+		itemStyle: () : UTSJSONObject => ({}),
+		activeStyle: () : UTSJSONObject => ({}),
+		inactiveStyle: () : UTSJSONObject => ({}),
+		customStyle: () : UTSJSONObject => ({}),
+	})
+	
+	const modelValue = defineModel({
+		type: Number,
+		default: 0
+	})
+	
+	let lastValue = 0
+	
+	const tabsItemStyle = computed(() => {
+		return { padding: `0 ${props.gutter}px` }
+	})
+	
+	function tabsItemClick(tab: TabsOptions, index: number) {
+		emit('clickTab', {
+			index,
+			name: tab.name,
+			value: tab.value,
+			disabled: tab.disabled ?? false
+		} as TabsClickTab)
+		if (modelValue.value == index || tab.disabled == true) return
+		modelValue.value = index
+		lastValue = index
+		emit('change', {
+			index,
+			name: tab.name,
+			value: tab.value,
+			disabled: tab.disabled ?? false
+		} as TabsChange)
+	}
+</script>
+
+<template>
+	<view class="base-tabs">
+		<scroll-view class="base-tabs__scroll" direction="horizontal" :show-scrollbar="false">
+			<view
+				v-for="(tab, index) in list"
+				:key="index"
+				:style="tabsItemStyle"
+				class="base-tabs__item">
+				<text
+					class="base-tabs__text"
+					:class="{ active: modelValue == index }"
+					@click="tabsItemClick(tab, index)">
+					{{ tab.name }}
+				</text>
+				<text class="base-tabs__line" :class="{ active: modelValue == index }" ></text>
+			</view>
+		</scroll-view>
+	</view>	
+</template>
+
+
+<style lang="scss" scoped>
+	.base-tabs {
+		flex-direction: row;
+	}
+	.base-tabs__scroll {
+		position: relative;
+    flex-direction: row;
+    height: 100%;
+    flex: 1;
+	}
+	.base-tabs__item {
+		position: relative;
+	}
+	.base-tabs__line {
+	}
+	.base-tabs__line.active {
+		border: 1px solid $uni-color-primary;
+	}
+</style>

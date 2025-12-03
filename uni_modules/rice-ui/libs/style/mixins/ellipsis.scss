@@ -1,0 +1,32 @@
+//单行文本省略
+@mixin ellipsis() {
+	text-overflow: ellipsis;
+	/* #ifdef APP */
+	lines:1;
+	/* #endif */
+	
+ /* #ifndef APP */
+ overflow: hidden;
+ white-space: nowrap;
+
+ /* #endif */
+}
+
+
+// 文本省略的行数
+@mixin multi-ellipsis($lines) {
+	
+	/* #ifdef APP */
+	lines:$lines;
+	/* #endif */
+	
+  /* #ifndef APP */
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: $lines;
+  line-break: anywhere;
+  -webkit-box-orient: vertical;
+  /* #endif */
+}
+

@@ -1,0 +1,272 @@
+<template>
+	<view :class="textareaClass" :style="[bgcolorStyle,customStyle]">
+		<textarea v-model="modelValue" :inputmode="inputmode" :placeholder="placeholder" :disabled="isDisabled||isReadonly"
+			:maxlength="maxlength" :placeholder-style="_placeholderStyle" :cursor-spacing="cursorSpacing"
+			:cursor-color="cursorColor" :auto-focus="autoFocus" :focus="focus" :confirm-type="confirmType"
+			:confirm-hold="confirmHold" :cursor="cursor" :selection-start="selectionStart" :selection-end="selectionEnd"
+			:adjust-position="adjustPosition" :hold-keyboard="holdKeyboard" :fixed="fixed" :show-confirm-bar="showConfirmBar"
+			:disable-default-padding="disableDefaultPadding" :auto-height="autoHeight" :class="textareaInnerClass"
+			:style="[customTextareaStyle,textareaStyle]" @input="onInput" @focus="onFocus" @blur="onBlur"
+			@keyboardheightchange="onKeyboardheightchange" @change="onChange" @linechange="onLinechange" />
+		<text v-if="showWordLimit&&maxlength>=0" :class="countClass"
+			:style="bgcolorStyle">{{modelValue!.length}}/{{maxlength}}</text>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Input
+	 * @property {String} modelValue 输入框的值
+	 * @property {Boolean} disabled 是否禁用
+	 * @property {Boolean} readonly 是否只读，默认false
+	 * @property {String} placeholder 输入框为空时占位符
+	 * @property {String} placeholderStyle 指定 placeholder 的样式
+	 * @property {Number} maxlength 最大输入长度，0和正数为合法值，非法值的时候不限制最大长度,默认-1，不限制
+	 * @property {Number} cursorSpacing 指定光标与键盘的距离，单位 px 。取 input 距离底部的距离和 cursor-spacing 指定的距离的最小值作为光标与键盘的距离
+	 * @property {String} cursorColor 指定光标颜色，Android的微信小程序非skyline下仅支持黑和绿，iOS版仅支持十六进制颜色值
+	 * @property {Boolean} autoFocus 自动获取焦点，与focus属性对比，此属性只会首次生效
+	 * @property {Boolean} focus 获取焦点
+	 * @property {String} confirmType 设置键盘右下角按钮的文字
+	 * @value return 下一行 （默认值）
+	 * @value done 完成
+	 * @value send 发送
+	 * @value search 搜索
+	 * @value next 下一个
+	 * @value go 前往
+	 * @property {Boolean} confirmHold 点击键盘右下角按钮时是否保持键盘不收起
+	 * @property {Boolean} autoHeight 是否自动增高，设置auto-height时，style.height不生效
+	 * @property {Number} cursor 指定focus时的光标位置
+	 * @property {Number} selectionStart 光标起始位置，自动聚集时有效，需与selection-end搭配使用
+	 * @property {Number} selectionEnd 光标结束位置，自动聚集时有效，需与selection-satrt搭配使用
+	 * @property {Boolean} adjustPosition 键盘弹起时，是否自动上推页面,默认true
+	 * @property {String} inputmode 是一个枚举属性，它提供了用户在编辑元素或其内容时可能输入的数据类型的提示，仅支持web，默认会根据type自动适配
+	 * @property {Boolean} holdKeyboard focus时，点击页面的时候不收起键盘,默认false
+	 * @property {Boolean} fixed 如果 textarea 是在一个 position:fixed 的区域，需要显示指定属性 fixed 为 true，仅支持微信小程序
+	 * @property {Boolean} showConfirmBar 是否显示键盘上方带有”完成“按钮那一栏，仅支持微信小程序
+	 * @property {Boolean} disableDefaultPadding 是否去掉 iOS 下的默认内边距，仅支持微信小程序
+	 * @property {String|Number} height 高度
+	 * @property {String|Number} minHeight 最小高度
+	 * @property {String|Number} maxHeight 最大高度
+	 * @property {String} color 输入框字体颜色
+	 * @property {String|Number} fontSize 输入框字体大小
+	 * @property {Boolean} showWordLimit 是否显示字数统计
+	 * @property {String} border 输入框的边框
+	 * @value surround 全边框（默认值）
+	 * @value bottom 下边框
+	 * @value none 无边框
+	 * @property {String} bgColor 背景颜色
+	 * @property {String} textareaAlign 输入框对齐方式，默认left,可选 right|center
+	 * @property {Object} textareaStyle 自定义input样式
+	 * @property {Object} customStyle 自定义样式
+	 */
+
+	import { useNamespace } from "../../libs/use"
+	import { isDark } from "../../libs/store"
+	import { hasStrValue, addUnit } from "../../libs/utils"
+	import { formDisabledInjectKey, formReadonlyInjectKey } from "../rice-form"
+	import { formItemBlurInjectKey } from "../rice-form-item"
+	import { TextareaProps } from "./type.uts"
+	defineOptions({
+		name: 'rice-textarea'
+	})
+	const ns = useNamespace("textarea")
+	const emit = defineEmits<{
+		input : [value: string],
+		focus : [event: UniTextareaFocusEvent],
+		blur : [event: UniTextareaBlurEvent],
+		keyboardheightchange : [event: UniInputKeyboardHeightChangeEvent],
+		change : [value: string],
+		linechange : [event: UniTextareaLineChangeEvent],
+	}>()
+
+	const props = withDefaults(defineProps<TextareaProps>(), {
+		maxlength: -1,
+		cursorSpacing: 0,
+		autoFocus: false,
+		focus: false,
+		confirmType: 'return',
+		confirmHold: false,
+		cursor: 0,
+		selectionStart: -1,
+		selectionEnd: -1,
+		adjustPosition: true,
+		holdKeyboard: false,
+		autoHeight: false,
+		border: 'surround',
+		showWordLimit: false,
+		height: '90px',
+		textareaStyle: () : UTSJSONObject => ({}),
+		customStyle: () : UTSJSONObject => ({}),
+	})
+
+	const modelValue = defineModel({
+		type: String,
+		default: ""
+	})
+
+	const isFocus = ref(false)
+	const showPasswordValue = ref(false)
+
+	const formDisabled = inject<Ref<boolean | null> | null>(formDisabledInjectKey, null)
+	const formReadonly = inject<Ref<boolean | null> | null>(formReadonlyInjectKey, null)
+	const formItemBlur = inject<(() => void) | null>(formItemBlurInjectKey, null)
+
+	const isDisabled = computed<boolean>(() => (formDisabled?.value ?? false) || (props.disabled ?? false))
+	const isReadonly = computed<boolean>(() => (formReadonly?.value ?? false) || (props.readonly ?? false))
+
+	const onClear = () => {
+		if (isDisabled.value || isReadonly.value) return
+		modelValue.value = ""
+	}
+
+	const onInput = (e : UniInputEvent) => {
+		emit('input', e.detail.value)
+	}
+
+	const onFocus = (e : UniTextareaFocusEvent) => {
+		isFocus.value = true
+		emit('focus', e)
+	}
+
+	let timer : null | number = null
+	const onBlur = (e : UniTextareaBlurEvent) => {
+		//加个延迟，防止web等端清除按钮点击不到
+		timer = setTimeout(() => {
+			isFocus.value = false
+			emit('blur', e)
+		}, 100)
+		formItemBlur?.()
+	}
+
+	const onKeyboardheightchange = (e : UniInputKeyboardHeightChangeEvent) => {
+		emit('keyboardheightchange', e)
+	}
+
+	const onChange = (e : UniInputChangeEvent) => {
+		emit('change', e.detail.value)
+	}
+
+	const onLinechange = (e : UniTextareaLineChangeEvent) => {
+		emit('linechange', e)
+	}
+
+	const bgcolorStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (hasStrValue(props.bgColor)) {
+			css.set('background-color', props.bgColor!)
+		}
+		return css
+	})
+
+	const customTextareaStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (hasStrValue(props.color)) {
+			css.set('color', props.color!)
+		}
+		if (hasStrValue(props.fontSize)) {
+			css.set('font-size', addUnit(props.fontSize!))
+		}
+		css.set('height', addUnit(props.height!))
+		if (props.maxHeight != null) {
+			css.set('max-height', addUnit(props.maxHeight!))
+		}
+		if (props.minHeight != null) {
+			css.set('min-height', addUnit(props.minHeight!))
+		}
+		return css
+	})
+
+	const textareaClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+			ns.is("disabled", isDisabled.value),
+			ns.m(props.border),
+		]
+	})
+
+	const textareaInnerClass = computed(() => {
+		return [
+			ns.e('textarea'),
+			ns.is("__textarea--disabled", isDisabled.value),
+			ns.e(`textarea--${props.textareaAlign ?? 'left'}`),
+		]
+	})
+
+	const countClass = computed(() => {
+		return [
+			ns.e('count'),
+			ns.is('__count--disabled', isDisabled.value)
+		]
+	})
+
+	const _placeholderStyle = computed(() => {
+		let baseColor = isDark.value ? '#4d4d4d' : '#c8c9cc'
+		let css = `color:${baseColor};font-size:${addUnit(props.fontSize ?? '15px')};`
+		return css + (props.placeholderStyle ?? "")
+	})
+
+	onUnmounted(() => {
+		if (timer != null) clearTimeout(timer!)
+	})
+</script>
+
+<style scoped lang="scss">
+	.rice-textarea {
+		position: relative;
+		border-radius: 4px;
+		background-color: var(--rice-textarea-background);
+		padding: 10px;
+
+		&__textarea {
+			text-align: left;
+			font-size: var(--rice-font-size-basic);
+			color: var(--rice-text-color);
+			width: 100%;
+
+			&--disabled {
+				color: var(--rice-textarea-disabled-text-color)
+			}
+
+			&--center {
+				text-align: center;
+			}
+
+			&--right {
+				text-align: right;
+			}
+		}
+
+		&__count {
+			position: absolute;
+			right: 5px;
+			bottom: 2px;
+			font-size: 12px;
+			background-color: var(--rice-textarea-background);
+			color: var(--rice-text-color-2);
+			padding: 1px 4px;
+
+			&--disabled {
+				background-color: var(--rice-textarea-disabled-background);
+				color: var(--rice-textarea-disabled-text-color)
+			}
+		}
+
+		&--surround {
+			border-radius: 4px;
+			border: 1px solid var(--rice-textarea-border-color);
+		}
+
+		&--bottom {
+			border-bottom: 1px solid var(--rice-textarea-border-color);
+		}
+
+
+		&--disabled {
+			background-color: var(--rice-textarea-disabled-background);
+			/* #ifdef WEB */
+			cursor: not-allowed;
+			/* #endif */
+		}
+	}
+</style>

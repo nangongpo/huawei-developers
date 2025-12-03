@@ -1,0 +1,23 @@
+export type NoticeBarState = {
+	show : boolean,
+	offset : number,
+	duration : number,
+	wrapWidth : number,
+	contentWidth : number,
+}
+
+export type NoticeBarProps = {
+	type ?: 'primary' | 'success' | 'warning' | 'error',
+	message ?: string,
+	color ?: string,
+	fontSize ?: string | number,
+	bgColor ?: string,
+	leftIcon ?: string,
+	rightIcon ?: string,
+	delay ?: number,
+	speed ?: number,
+	closeable ?: boolean,
+	scrollable ?: boolean,
+	wrapable ?: boolean,
+	customStyle ?: UTSJSONObject
+}

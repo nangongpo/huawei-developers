@@ -1,0 +1,20 @@
+export const MAR_SPACE = 6
+export const CAPSULE_SPACE = 3
+export const RIGHT_TEXT_WIDTH = 40
+export const TOP_TEXT_HEIGHT = 20
+
+export const fillModelValue = (values : number[], min : number, max : number) : number[] => {
+	let newVal = values.slice(0)
+	if (values.length == 0) {
+		newVal = [min, max]
+	} else if (values.length == 1) {
+		newVal = [values[0], max]
+	}
+	const firstValue = newVal[0]
+	const secondValue = newVal[1]
+	// return [firstValue, secondValue]
+	return firstValue > secondValue
+		? [secondValue, firstValue]
+		: [firstValue, secondValue]
+}
+

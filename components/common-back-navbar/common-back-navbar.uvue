@@ -1,0 +1,36 @@
+<script setup lang="uts">
+	const props = defineProps<{
+		title: string
+	}>()
+	
+	const titleClass = computed(() => props.title == null ? 'flex-grow-1' : 'flex-shrink-1 text-ellipsis')
+	
+	function navigateBack() {
+		uni.navigateBack()
+	}
+</script>
+
+<template>
+	<view class="back-navbar-container">
+		<iconfont name="left-arrow" size="24px" hover-class="none" @click="navigateBack" />
+		
+		<text class="back-navbar-title uni-common-pl" :class="titleClass">{{ title }}</text>
+		
+		<text class="flex-grow-1"></text>
+		
+		<slot name="right"></slot>
+	</view>
+</template>
+
+<style lang="scss" scoped>
+	.back-navbar-container {
+		position: relative;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		height: $uni-navbar-height;
+	}
+	.back-navbar-title {
+		font-size: $uni-font-size-xl;
+	}
+</style>

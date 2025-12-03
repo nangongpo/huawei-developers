@@ -1,0 +1,89 @@
+{
+	"name": "huawei-developers",
+	"appid": "__UNI__F0BDE74",
+	"description": "",
+	"versionName": "1.0.0",
+	"versionCode": "100",
+	"uni-app-x": {},
+	/* 快应用特有相关 */
+	"quickapp": {},
+	/* 小程序特有相关 */
+	"mp-weixin": {
+		"appid": "",
+		"setting": {
+			"urlCheck": false
+		},
+		"usingComponents": true
+	},
+	"mp-alipay": {
+		"usingComponents": true
+	},
+	"mp-baidu": {
+		"usingComponents": true
+	},
+	"mp-toutiao": {
+		"usingComponents": true
+	},
+	"uniStatistics": {
+		"enable": false
+	},
+	"vueVersion": "3",
+	"app": {
+		"distribute": {
+			"icons": {
+				"ios": {
+					"appstore": "package/icon1024.png"
+				},
+				"android": {
+					"xxhdpi": "package/icon144.png",
+					"xxxhdpi": "package/icon192.png"
+				}
+			}
+		}
+	},
+	"app-android": {
+		"distribute": {
+			"modules": {
+				"uni-location": {
+					"system": {}
+				}
+			},
+			"icons": {
+				"xxhdpi": "package/icon144.png",
+				"xxxhdpi": "package/icon192.png"
+			},
+			"splashScreens": {
+				"default": {}
+			},
+			"minSdkVersion": "21",
+			"schemes": "huawei-developers",
+			"abiFilters": []
+		}
+	},
+	"app-ios": {
+		"distribute": {
+			"modules": {},
+			"icons": {
+				"appstore": "package/icon1024.png"
+			},
+			"splashScreens": {}
+		}
+	},
+	"app-harmony": {
+		"distribute": {
+			"bundleName": "io.dcloud.huawei-developers",
+			"icons": {
+				"foreground": "package/D-1024.png",
+				"background": "package/background-white.png"
+			},
+			"splashScreens": {
+				"startWindowIcon": "package/icon256.png"
+			}
+		}
+	},
+	"web": {
+		"router": {
+			"mode": ""
+		}
+	}
+}

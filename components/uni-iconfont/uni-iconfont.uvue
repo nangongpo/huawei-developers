@@ -1,0 +1,19 @@
+<script setup lang="uts">
+	import { Props } from './type.uts'
+	import { iconMap } from './utils.uts'
+
+	const props = defineProps<Props>()
+</script>
+
+<template>
+	<text class="uni-iconfont" :style="{ 'font-size': size }">
+		{{ iconMap[name] }}
+	</text>
+</template>
+
+<style scoped>
+	.uni-iconfont {
+		font-family: uni-icon;
+		font-size: 16px;
+	}
+</style>

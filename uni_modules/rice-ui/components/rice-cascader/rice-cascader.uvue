@@ -1,0 +1,444 @@
+<template>
+	<rice-overlay v-if="usePopup" v-model:show="show" :z-index="zIndex-1" :close-on-click-overlay="closeOnClickOverlay"
+		:duration="300"></rice-overlay>
+	<view v-if="isShow" :class="cascaderClass" :style="[cascaderStyle,customStyle]" ref="cascaderRef">
+		<view v-if="hasStrValue(title)||closeable||slots['title']!=null" class="rice-cascader__header">
+			<slot name="title">
+				<text v-if="hasStrValue(title)" class="rice-cascader__header__title"
+					:class="{'rice-cascader__header__title--left':titleAlign=='left'}">{{title}}</text>
+			</slot>
+			<rice-icon v-if="closeable" :name="closeIcon" :custom-style="closeStyle" size="20px" @click="clickClose" />
+		</view>
+		<rice-tabs :list="tabs" v-model="tabIndex" shrink :title-active-color="_activeColor" :line-color="_activeColor"
+			title-inactive-color="var(--rice-text-color)" :custom-style="{padding:'0px 8px'}"></rice-tabs>
+		<view class="rice-cascader__line"></view>
+		<swiper class="rice-cascader__swiper" :current="tabIndex" :duration="180" :disable-touch="true">
+			<!-- #ifndef MP -->
+			<swiper-item v-for="(item,index) in list" :key="index" class="rice-cascader__swiper__item">
+			<!-- #endif -->
+				<!-- #ifdef MP -->
+				<!-- 小程序端禁止touch操作 -->
+				<swiper-item v-for="(item,index) in list" :key="index" class="rice-cascader__swiper__item"
+					@touchmove.prevent="onTouchMove">
+				<!-- #endif -->
+					<slot name="optionsTop" :tabIndex="tabIndex"></slot>
+					<list-view class="rice-cascader__list" :show-scrollbar="false" direction="vertical" :bounces="false">
+						<list-item v-for="(option,optionIndex) in item" :key="option.value" class="rice-cascader__option"
+							:class="{'rice-cascader__option--border':border==true,'rice-cascader__option--first':optionIndex==0&&slots['optionsTop']==null}"
+							@click="clickOption(option,index)">
+							<text class="rice-cascader__option__text"
+								:class="{'rice-cascader__option--disabled':option.disabled==true}"
+								:style="[textStyle,getTextStyle(option,index)]">{{option.text}}</text>
+							<rice-icon v-if="getIsSelected(option,index)" name="checked" :color="_activeColor"></rice-icon>
+						</list-item>
+					</list-view>
+					<slot name="optionsBottom" :tabIndex="tabIndex"></slot>
+				</swiper-item>
+		</swiper>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Cascader 级联选择 用于多层级数据的选择
+	 * @property {Boolean} show 是否显示,usePopup 为 true时生效
+	 * @property {String|Number} modelValue 绑定的数据
+	 * @property {Array} options 可选项的数据
+	 * @property {String} title 顶部栏标题
+	 * @property {String} titleAlign 标题对齐方式
+	 * @value center 居中（默认值）
+	 * @value left 左对齐
+	 * @property {String} placeholder 未选中时的提示文字，默认请选择
+	 * @property {String} color 选项文字颜色
+	 * @property {String} activeColor 选中状态下的文字颜色
+	 * @property {String|Number} fontSize 选项文字大小
+	 * @property {Boolean} closeable 是否显示关闭按钮
+	 * @property {String} closeIcon 关闭按钮的图标
+	 * @property {Boolean} border 选项是否显示下边框
+	 * @property {Boolean} usePopup 是否使用popup
+	 * @property {Boolean} closeOnFinish 全部选项选择完成后是否关闭popup，是否选择完成判断的条件是children为null/undefined
+	 * @property {Boolean} closeOnClickClose 点击关闭按钮是否关闭popup
+	 * @property {Boolean} closeOnClickOverlay 点击遮罩层是否关闭popup
+	 * @property {Boolean} safeAreaInsetBottom 是否开启底部安全区适配
+	 * @property {Number} zIndex zIndex 层级
+	 * @property {Object} customStyle  自定义style
+	 */
+	import { useNamespace, usePopup as useBottomPopup, useSafeArea } from "../../libs/use"
+	import { addUnit, hasStrValue, isSameValue } from "../../libs/utils"
+	import { isDark } from "../../libs/store"
+	import { TabsOptions } from "../rice-tabs/index"
+	import { CascaderProps, CascaderOption, CascaderEvent, CascaderClickDisabledEvent, GetSelectedOptionsByValue } from "./type.uts"
+
+	defineOptions({
+		name: 'rice-cascader'
+	})
+	const ns = useNamespace('cascader')
+	const { safeBottom } = useSafeArea()
+	const emit = defineEmits<{
+		change : [value: CascaderEvent], //选中项变化时触发
+		finish : [value: CascaderEvent], //全部选项选择完成后触发
+		clickClose : [], //点击关闭图标时触发
+		clickDisabled : [value: CascaderClickDisabledEvent],
+		open : [],
+		close : [],
+		opened : [],
+		closed : [],
+	}>()
+
+	const slots = defineSlots<{
+		title() : any,
+		optionsTop(props : { tabIndex : number }) : any,
+		optionsBottom(props : { tabIndex : number }) : any,
+	}>()
+
+	const props = withDefaults(defineProps<CascaderProps>(), {
+		placeholder: '请选择',
+		closeable: true,
+		closeIcon: 'cross',
+		usePopup: true,
+		closeOnFinish: true,
+		closeOnClickClose: true,
+		closeOnClickOverlay: true,
+		zIndex: 999,
+		safeAreaInsetBottom: null,
+		options: () : CascaderOption[] => ([]),
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const modelValue = defineModel({
+		type: [String, Number] as PropType<string | number | null>,
+	})
+
+	const show = defineModel('show', {
+		type: Boolean,
+		default: false
+	})
+
+	const cascaderRef = shallowRef<UniElement | null>(null)
+	const list = ref<CascaderOption[][]>([])
+	const tabIndex = ref(0)
+	const selectedOptions = ref<CascaderOption[]>([])
+	const { realShow } = useBottomPopup(cascaderRef, {
+		show: show
+	})
+	const isShow = computed<boolean>(() => props.usePopup ? realShow.value : true)
+	const tabs = computed(() => {
+		const selected = selectedOptions.value.map(option => {
+			return {
+				name: option.text
+			} as TabsOptions
+		})
+		if (selectedOptions.value.length < list.value.length) {
+			selected.push({
+				name: props.placeholder
+			})
+		}
+		return selected
+	})
+
+	let getSelectedOptionsByValue : GetSelectedOptionsByValue = null
+	getSelectedOptionsByValue = (options : CascaderOption[], value ?: string | number | null) => {
+		for (let i = 0; i < options.length; i++) {
+			const option = options[i]
+			if (isSameValue(option.value, value)) {
+				return [option] as CascaderOption[]
+			}
+			if (option.children != null) {
+				//鸿蒙平台执行这段递归特别慢，原因暂未知，待优化
+				const selected = getSelectedOptionsByValue!(option.children!, value)
+				if (selected.length > 0) return [option, ...selected] as CascaderOption[]
+			}
+		}
+		return [] as CascaderOption[]
+	}
+
+	let timer : number | null = null
+	const setTabIndex = () => {
+		if (timer != null) clearTimeout(timer!)
+
+		timer = setTimeout(() => {
+			tabIndex.value = list.value.length - 1
+		},
+			// #ifdef APP
+			100
+			// #endif
+			// #ifndef APP
+			30
+			// #endif
+		);
+
+	}
+
+	const updateList = () => {
+		if (modelValue.value != null) {
+			const selected = getSelectedOptionsByValue!(props.options, modelValue.value)
+			selectedOptions.value = selected
+			if (selected.length > 0) {
+				let cursor = props.options
+				const data = [] as CascaderOption[][]
+				for (let i = 0; i < selected.length; i++) {
+					const option = selected[i]
+					data.push(cursor)
+					const next = cursor.find(item => isSameValue(item.value, option.value))
+					if (next != null) {
+						cursor = next.children ?? [] as CascaderOption[]
+					}
+				}
+				if (cursor.length > 0) {
+					data.push(cursor)
+				}
+				list.value = data
+				setTabIndex()
+				return
+			}
+
+		}
+		list.value = [props.options]
+		setTabIndex()
+	}
+
+	const getIsSelected = (option : CascaderOption, index : number) => {
+		if (index >= selectedOptions.value.length) {
+			return false
+		}
+		return isSameValue(selectedOptions.value[index].value, option.value)
+	}
+
+	const clickOption = (option : CascaderOption, index : number) => {
+		if (option.disabled == true) {
+			emit('clickDisabled', {
+				tabIndex: tabIndex.value,
+				option,
+			} as CascaderClickDisabledEvent)
+			return
+		}
+		const nextIndex = index + 1
+		if (list.value.length > nextIndex) {
+			list.value = list.value.slice(0, nextIndex)
+		}
+
+		if (Array.isArray(option.children)) {
+			list.value.push(option.children)
+			setTabIndex()
+		}
+
+		const oldModelValue = modelValue.value
+		modelValue.value = option.value
+		selectedOptions.value = getSelectedOptionsByValue!(props.options, option.value)
+		const params = {
+			value: option.value,
+			tabIndex: tabIndex.value,
+			selectedOptions: selectedOptions.value
+		} as CascaderEvent
+
+		if (!isSameValue(option.value, oldModelValue)) {
+			emit('change', params)
+		}
+
+		if (option.children == null || !Array.isArray(option.children)) {
+			if (props.closeOnFinish && props.usePopup) {
+				show.value = false
+			}
+			emit('finish', params)
+		}
+	}
+
+	const clickClose = () => {
+		if (props.usePopup && props.closeOnClickClose) {
+			show.value = false
+		}
+		emit('clickClose')
+	}
+
+	watch(modelValue, (newVal : string | number | null) => {
+		if (newVal != null) {
+			const selectedValues = selectedOptions.value.map(v => v.value)
+			if (selectedValues.includes(newVal)) {
+				return
+			}
+		}
+		updateList()
+	})
+
+	watch(() : CascaderOption[] => props.options, () => {
+		if (isShow.value) {
+			updateList()
+		}
+	}, {
+		deep: true,
+		immediate: true,
+	})
+
+	watch(show, () => {
+		if (show.value && list.value.length == 0 && props.usePopup) {
+			updateList()
+		}
+	}, {
+		immediate: true
+	})
+
+	function getSelectedOptions() {
+		return selectedOptions.value
+	}
+
+	// #ifdef MP
+	const onTouchMove = () => { }
+	// #endif
+
+	const isSafeAreaInsetBottom = computed<boolean>(() => props.safeAreaInsetBottom ?? props.usePopup)
+	const cascaderStyle = computed(() => {
+		const css = new Map<string, string | number>()
+		if (props.usePopup) {
+			css.set('z-index', props.zIndex)
+		}
+		// #ifndef WEB
+		if (isSafeAreaInsetBottom.value) {
+			css.set('padding-bottom', safeBottom.value + 'px')
+		}
+		// #endif
+		return css
+	})
+
+	const textStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (hasStrValue(props.color)) css.set('color', props.color!)
+		if (props.fontSize != null) css.set('font-size', addUnit(props.fontSize!))
+		return css
+	})
+
+	const getTextStyle = (option : CascaderOption, index : number) => {
+		const css = new Map<string, string>()
+		if (getIsSelected(option, index) && hasStrValue(props.activeColor)) {
+			css.set('color', props.activeColor!)
+		}
+		return css
+	}
+
+	const cascaderClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+			ns.is('popup', props.usePopup == true),
+			//#ifdef WEB
+			ns.is('rice-safe-area-bottom', isSafeAreaInsetBottom.value)
+			//#endif
+		]
+	})
+
+	const _activeColor = computed(() => hasStrValue(props.activeColor) ? props.activeColor! : 'var(--rice-primary-color)')
+
+	const closeStyle = ref({
+		position: 'absolute',
+		right: '16px',
+		top: '12px',
+		zIndex: 9
+	})
+
+	onUnmounted(() => {
+		if (timer != null) clearTimeout(timer!)
+	})
+
+	defineExpose({
+		getSelectedOptions
+	})
+</script>
+
+<style scoped lang="scss">
+	@import "../../libs/style/mixins/hairline";
+
+	.rice-cascader {
+		position: relative;
+		background-color: var(--rice-cascader-background);
+		box-sizing: border-box;
+		height: 480px;
+
+		&--popup {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			border-radius: 12px 12px 0 0;
+			transition-property: transform;
+			transform: translateY(100%);
+		}
+
+		&__header {
+			position: relative;
+			height: 48px;
+			align-items: center;
+			justify-content: center;
+			padding: 0 var(--rice-padding-md);
+
+			&__title {
+				font-size: var(--rice-font-size-lg);
+				font-weight: bold;
+				color: var(--rice-text-color);
+				text-align: center;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				width: 100%;
+
+				&--left {
+					text-align: left;
+				}
+			}
+		}
+
+		&__swiper {
+			flex: 1;
+
+			&__item {
+				height: 100%;
+			}
+		}
+
+		&__line {
+			height: 1px;
+			background-color: var(--rice-border-color);
+			transform: scaleY(0.5);
+			margin-top: -2px;
+		}
+
+		&__list {
+			flex: 1;
+		}
+
+		&__option {
+			flex-direction: row;
+			align-items: center;
+			justify-content: space-between;
+			padding: 10px var(--rice-padding-md);
+
+			&__text {
+				font-size: var(--rice-font-size-md);
+				color: var(--rice-text-color);
+				line-height: 1.6;
+
+				/* #ifndef APP */
+				flex: 1;
+				/* #endif */
+
+				/* #ifdef WEB */
+				cursor: pointer;
+				/* #endif */
+			}
+
+			&--disabled {
+				color: var(--rice-cascader-disabled-text-color);
+				/* #ifdef WEB */
+				cursor: not-allowed;
+				/* #endif */
+			}
+
+			&--border {
+				@include hairline-bottom;
+			}
+
+			&--first {
+				padding-top: 20px;
+			}
+
+		}
+
+	}
+</style>

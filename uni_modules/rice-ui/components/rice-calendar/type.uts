@@ -1,0 +1,64 @@
+
+import { LunarInfoType } from './lunar.uts'
+
+export type CalendarData = {
+	fullDate : string,
+	year : number,
+	month : number,
+	date : number,
+	day : number,
+	lunarInfo ?: LunarInfoType,
+	isToday : boolean,
+	text ?: string,
+	topInfo ?: string,
+	topInfoColor ?: string,
+	bottomInfo ?: string,
+	bottomInfoColor ?: string,
+	badge ?: boolean,
+	disabled ?: boolean,
+}
+
+export type GridItem = {
+	x : number;
+	y : number;
+	width : number;
+	height : number;
+	data : CalendarData
+}
+
+export type CalendarFormatter = (day : CalendarData) => CalendarData
+
+export type CalendarMode = 'single' | 'multiple' | 'range'
+export type CalendarSwitchMode = 'month' | 'year-month' | 'none'
+
+export type CalendarProps = {
+	mode ?: CalendarMode,
+	date ?: any | null,//android：不支持string | string[]，传数组类型时会报错
+	switchMode ?: CalendarSwitchMode,
+	minDate ?: string,
+	maxDate ?: string,
+	lunar ?: boolean,
+	title ?: string,
+	showTitle ?: boolean,
+	color ?: string,
+	formatter ?: CalendarFormatter,
+	showSubtitle ?: boolean,
+	showConfirmBtn ?: boolean,
+	confirmText ?: string,
+	confirmDisabledText ?: string,
+	maxRange ?: number,
+	rangePrompt ?: string,
+	showRangePrompt ?: boolean,
+	allowSameDay ?: boolean,
+	rowHeight ?: string | number,
+	readonly ?: boolean,
+	firstDayOfWeek ?: number,
+	closeable ?: boolean,
+	closeIcon ?: string,
+	usePopup ?: boolean,
+	closeOnClickClose ?: boolean,
+	closeOnClickOverlay ?: boolean,
+	safeAreaInsetBottom ?: boolean,
+	zIndex ?: number,
+	customStyle ?: UTSJSONObject,
+}

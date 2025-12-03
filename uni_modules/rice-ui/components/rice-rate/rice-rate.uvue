@@ -1,0 +1,283 @@
+<template>
+	<view :class="rateClass" :style="customStyle" ref="rateRef" @touchmove="onTouchmove" @touchstart="onTouchstart">
+		<view v-for="(item,index) in rateList" :key="index" class="rice-rate__item" :style="getRateItemStyle(index)"
+			ref="rateItemRef" :class="item.status=='full'?'rice-rate__item--full--mp':'rice-rate__item--void--mp'"
+			@click="handleClick($event as UniPointerEvent,index+1)">
+			<rice-icon :name="item.status=='full'?icon:voidIcon" :size="size"
+				:custom-class="item.status=='full'?'rice-rate__item--full':'rice-rate__item--void'"
+				:color="getIconColor(item)"></rice-icon>
+			<rice-icon v-if="allowHalf&&item.value==0.5" :size="size" :name="icon" :custom-style="getHalfIconStyle(item)"
+				custom-class="rice-rate__item--full" :color="color"></rice-icon>
+		</view>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Rate
+	 * @property {Number} modelValue 当前分值
+	 * @property {Number} count 图标总数
+	 * @property {String} icon 选中时的图标名称或图片链接，等同于 Icon 组件的 name 属性
+	 * @property {String} voidIcon 未选中时的图标名称或图片链接，等同于 Icon 组件的 name 属性
+	 * @property {Number|String} size 图标大小
+	 * @property {Number|String} gutter 图标间距
+	 * @property {String} color 选中时的颜色 
+	 * @property {String} voidColor 未选中时的颜色 
+	 * @property {Boolean} allowHalf 是否允许半选，默认false
+	 * @property {Boolean} clearable  值为true是，再次点击相同的值时，可以将值重置为 0
+	 * @property {Boolean} readonly 是否只读
+	 * @property {Boolean} disabled 是否禁用
+	 * @property {Boolean} touchable 是否可以通过滑动手势选择评分，默认true
+	 * @property {Object} customStyle 自定义样式
+	 */
+	import { useCssVar, useNamespace, useTouch } from "../../libs/use"
+	import { isDark } from "../../libs/store"
+	import { addUnit, clamp, getPxNum, hasStrValue } from "../../libs/utils"
+	import { formDisabledInjectKey, formReadonlyInjectKey } from "../rice-form"
+	import { RateProps, RateStatus } from "./type.uts"
+
+	defineOptions({
+		name: 'rice-rate'
+	})
+	const ns = useNamespace('rate')
+	const emit = defineEmits<{
+		change : [value: number]
+	}>()
+	const touch = useTouch()
+	const props = withDefaults(defineProps<RateProps>(), {
+		count: 5,
+		icon: 'star-fill',
+		voidIcon: 'star',
+		size: '22px',
+		gutter: '4px',
+		// #ifdef MP
+		color: '#ee0a24',
+		// #endif
+		allowHalf: false,
+		clearable: false,
+		readonly: false,
+		disabled: false,
+		touchable: true,
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const modelValue = defineModel({
+		type: Number,
+		default: 0,
+	})
+
+	const formDisabled = inject<Ref<boolean | null> | null>(formDisabledInjectKey, null)
+	const formReadonly = inject<Ref<boolean | null> | null>(formReadonlyInjectKey, null)
+
+	const isDisabled = computed<boolean>(() => (formDisabled?.value ?? false) || props.disabled)
+	const isReadonly = computed<boolean>(() => (formReadonly?.value ?? false) || props.readonly)
+	const unable = computed<boolean>(() => isDisabled.value || isReadonly.value)
+
+	const rateRef = shallowRef<UniElement | null>(null)
+	const rateItemRef = shallowRef<UniElement[]>([])
+	const rateItemWidth = ref(0)
+	const rateLeft = ref(0)
+
+	const rateList = computed(() => {
+		const list = [] as RateStatus[]
+		// #ifdef APP-ANDROID
+		const value = modelValue.value!
+		// #endif
+		// #ifndef APP-ANDROID
+		const value = modelValue.value ?? 0
+		// #endif
+
+		for (let index = 1; index <= props.count; index++) {
+			if (value >= index) {
+				list.push({ status: 'full', value: 1 })
+			} else if (value + 0.5 >= index && props.allowHalf) {
+				list.push({ status: 'half', value: 0.5 })
+			} else {
+				list.push({ status: 'void', value: 0 })
+			}
+		}
+
+		return list
+	})
+
+	const getRateSize = () => {
+		rateRef.value?.getBoundingClientRectAsync()?.then((res : DOMRect) => {
+			rateLeft.value = res.left
+		})
+		if (rateItemRef.value.length > 0) {
+			rateItemRef.value[0]!.getBoundingClientRectAsync()!.then((res : DOMRect) => {
+				rateItemWidth.value = res.width
+			})
+		}
+	}
+
+	const updateModelValue = (value : number) => {
+		if (unable.value || value == modelValue.value) return
+		modelValue.value = value
+		emit('change', value)
+	}
+
+	const margin = computed(() => getPxNum(props.gutter))
+
+	const getRateIndex = (clientX : number) => {
+		const size = rateItemWidth.value
+		const moveRange = clientX - rateLeft.value
+		let index = Math.floor(moveRange / (size + margin.value))
+		index = index < 0 ? 0 : index;
+		const range = Math.floor(moveRange - (size + margin.value) * index)
+		let value : number;
+		if (props.allowHalf) {
+			if (range > (size / 2)) {
+				value = index + 1
+			} else {
+				value = index + 0.5
+			}
+		} else {
+			value = index + 1
+		}
+		value = clamp(value, 0.5, props.count)
+		if (touch.isTap.value && props.clearable && value == modelValue.value) {
+			value = 0
+		}
+		updateModelValue(value)
+	}
+
+
+
+	const handleClick = async (e : UniPointerEvent, value : number) => {
+		//鸿蒙平台点击事件的clientX是 NaN，原因未知，使用touchstart 事件代替
+		// #ifndef APP-HARMONY
+		if (props.allowHalf) {
+			getRateSize()
+			getRateIndex(e.clientX)
+			return
+		}
+		if (props.clearable && value == modelValue.value) {
+			value = 0
+		}
+
+		updateModelValue(value)
+		// #endif
+	}
+
+	const skipMove = ref(false)
+	const onTouchstart = (e : UniTouchEvent) => {
+		if (unable.value) return
+		getRateSize()
+		skipMove.value = false;
+		touch.start(e)
+		// #ifdef APP-HARMONY
+		getRateIndex(e.touches[0].clientX)
+		// #endif
+	}
+
+	const onTouchmove = async (e : UniTouchEvent) => {
+		if (unable.value || !props.touchable || skipMove.value) return
+		touch.move(e)
+		if (touch.direction.value == 'vertical') {
+			skipMove.value = true
+		}
+		if (touch.direction.value != 'horizontal') return
+		const clientX = e.touches[0].clientX
+		getRateIndex(clientX)
+		e.preventDefault()
+	}
+
+	const getIconColor = (item : RateStatus) : string | null => {
+		// #ifdef MP
+		return item.status == 'full' ? props.color ?? 'inherit' : props.voidColor ?? 'inherit'
+		// #endif
+
+		// #ifndef MP
+		return item.status == 'full' ? props.color : props.voidColor
+		// #endif
+	}
+
+	const getRateItemStyle = (index : number) => {
+		const css = new Map<string, string>()
+		if (index < props.count - 1) {
+			css.set('margin-right', addUnit(props.gutter))
+		}
+		return css
+	}
+
+	const getHalfIconStyle = (item : RateStatus) => {
+		return {
+			position: 'absolute',
+			top: 0,
+			left: 0,
+			pointerEvents: 'none',
+			width: item.value * 100 + '%',
+		}
+	}
+
+
+	const rateClass = computed(() => {
+		return [
+			ns.b(''),
+			ns.theme(),
+			ns.is('disabled', isDisabled.value)
+		]
+	})
+
+
+
+	let timer : null | number = 0
+	onMounted(() => {
+		timer = setTimeout(() => {
+			getRateSize()
+		}, 100)
+	})
+
+	onUnmounted(() => {
+		if (timer != null) clearTimeout(timer!)
+	})
+</script>
+
+
+<style scoped lang="scss">
+	.rice-rate {
+		flex-direction: row;
+		flex-wrap: wrap;
+		/* #ifdef WEB */
+		cursor: pointer;
+		user-select: none;
+
+		/* #endif */
+		/* #ifndef APP */
+		width: fit-content;
+
+		/* #endif */
+		&__item {
+			position: relative;
+
+			&--full {
+				color: var(--rice-rate-color);
+			}
+
+			&--void {
+				color: var(--rice-rate-void-color);
+			}
+
+			/* #ifdef MP */
+			// 微信小程序在 rice-icon 上面添加class 没效果
+			&--full--mp {
+				color: var(--rice-rate-color);
+			}
+
+			&--void--mp {
+				color: var(--rice-rate-void-color);
+			}
+
+			/* #endif */
+
+
+		}
+
+		&--disabled {
+			opacity: 0.5;
+		}
+
+
+	}
+</style>

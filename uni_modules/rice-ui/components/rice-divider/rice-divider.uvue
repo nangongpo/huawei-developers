@@ -1,0 +1,138 @@
+<template>
+	<view :class="dividerClass" :style="[dividerStyle,customStyle]">
+		<template v-if="hasText">
+			<view :class="getLineClass('left')" :style="dividerLineStyle"></view>
+			<slot>
+				<text :class="ns.e('text')" :style="textStyle">{{text}}</text>
+			</slot>
+			<view :class="getLineClass('right')" :style="dividerLineStyle"></view>
+		</template>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Divider 分割线
+	 * @property {Boolean} dashed 是否虚线，默认false
+	 * @property {Boolean} hairline 使用0.5px的线条，默认true
+	 * @property {String} lineColor 线条颜色
+	 * @property {String|Number} text 文本内容
+	 * @property {String} textPosition 文本的位置，默认center
+	 * @value left 左边
+	 * @value right 右边
+	 * @value center 居中
+	 * @property {String} textColor 文本颜色
+	 * @property {String|Number} textSize 文本大小
+	 * @property {Object} customStyle 自定义样式
+	 */
+	import { addUnit, hasStrValue } from '../../libs/utils';
+	import { useNamespace } from '../../libs/use';
+	import { DividerProps } from './type.uts';
+
+	defineOptions({
+		name: 'rice-divider'
+	})
+
+	const ns = useNamespace('divider')
+	const slots = useSlots()
+
+	const props = withDefaults(defineProps<DividerProps>(), {
+		dashed: false,
+		hairline: true,
+		textPosition: 'center',
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const hasText = computed(() => slots['default'] != null || hasStrValue(props.text))
+
+
+	const dividerStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.lineColor != null && !hasText.value) css.set('border-color', props.lineColor!)
+		return css
+	})
+
+	const dividerLineStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.lineColor != null) css.set('border-color', props.lineColor!)
+		return css
+	})
+
+
+	const dividerClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+			ns.is("single", !hasText.value),
+			ns.is('hairline', props.hairline && !hasText.value),
+			ns.is('dashed', props.dashed && !hasText.value),
+		]
+	})
+
+
+	const getLineClass = (position : 'left' | 'right') => {
+		return [
+			ns.e(position),
+			ns.is('hairline', props.hairline),
+			ns.is('sides', props.textPosition == position),
+			ns.is('dashed', props.dashed),
+		]
+	}
+
+
+	const textStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.textSize != null) css.set('font-size', addUnit(props.textSize!))
+		if (props.textColor != null) css.set('color', props.textColor!)
+		return css
+	})
+</script>
+
+<style scoped lang="scss">
+	.rice-divider {
+		flex-direction: row;
+		align-items: center;
+		margin: var(--rice-padding-md) auto;
+		width: 100%;
+
+		&--single {
+			border-top: 1px solid var(--rice-divider-line-color);
+			transform: scaleY(1);
+		}
+
+
+		&__text {
+			font-size: var(--rice-font-size-sm);
+			color: var(--rice-text-color-2);
+		}
+
+		&__left,
+		&__right {
+			flex: 1;
+			box-sizing: border-box;
+			border-top: 1px solid var(--rice-divider-line-color);
+		}
+
+		&__left {
+			margin-right: var(--rice-padding-sm);
+		}
+
+		&__right {
+			margin-left: var(--rice-padding-sm);
+		}
+
+		&--sides {
+			width: 30px;
+			flex: 0 1 auto;
+		}
+
+		&--dashed {
+			border-top-style: dashed;
+		}
+
+		&--hairline {
+			transform: scaleY(0.5);
+		}
+
+	}
+</style>

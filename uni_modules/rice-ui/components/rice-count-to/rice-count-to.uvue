@@ -1,0 +1,213 @@
+<template>
+	<text :class="countToClass" :style="[countToStyle,customStyle]">{{displayValue}}</text>
+</template>
+
+<script setup>
+	/**
+	 * @description CountTo 用于将数字滚动到一个特定的值
+	 * @property {String | Number} startVal	开始的数值，默认从0增长到endVal
+	 * @property {String | Number}	endVal	要滚动到的目标值，默认0
+	 * @property {Number}	duration	滚动到目标数值的动画时间，单位毫秒，默认1000
+	 * @property {Boolean} autoplay	设置数值后是否自动开始滚动,默认true
+	 * @property {Boolean} restart	若第一次滚动结束后每次滚动都需要从初始值（startVal）开始，而非延续上次结束值（endVal），请将此参数设为 true，默认为false
+	 * @property {Number}	decimals	要显示的小数位数
+	 * @property {String}	color	字体颜色
+	 * @property {String | Number}	fontSize	字体大小,默认16px
+	 * @property {Boolean}	bold 字体是否加粗，默认false
+	 * @property {String}	separator	千位分隔符
+	 * @property {Object}	customStyle	自定义样式
+	 */
+	import { useNamespace } from "../../libs/use"
+	import { addUnit, hasStrValue, str2num } from "../../libs/utils"
+	import { CountToProps, StartCountFn } from './type.uts';
+	defineOptions({
+		name: 'rice-count-to'
+	})
+	const ns = useNamespace('count-to')
+
+	const emit = defineEmits<{
+		end : [],
+	}>()
+
+	const props = withDefaults(defineProps<CountToProps>(), {
+		startVal: 0,
+		endVal: 0,
+		duration: 1000,
+		autoplay: true,
+		restart: false,
+		customStyle: () : UTSJSONObject => ({}),
+	})
+
+
+	const formatNum = (value ?: string | number) => {
+		value = value == null ? 0 : str2num(value!)
+		const num = value.toFixed(props.decimals ?? 0)
+		const x = num.split('.')
+		let x1 = x[0]
+		let x2 = x.length > 1 ? `.${x[1]}` : ''
+		const reg = /(\d+)(\d{3})/;
+		if (hasStrValue(props.separator)) {
+			while (reg.test(x1)) {
+				x1 = x1.replace(reg, '$1' + props.separator + '$2')
+			}
+		}
+		return x1 + x2
+	}
+
+	const displayValue = ref(formatNum(props.startVal))
+	let paused = false
+	let startTime = 0
+	let localStartVal = 0
+	let lastTime = 0
+	let remainTime = 0
+	let currentVal = 0
+	let duration = props.duration
+	let timer : number | null = 0
+	let lastEndVal = str2num(props.endVal)
+	
+	const startVal = computed(() => str2num(props.startVal))
+	const isCountDown = computed(() => {
+		return startVal.value > str2num(props.endVal)
+	})
+
+	const clearTimer = () => {
+		if (timer != null) clearTimeout(timer!)
+	}
+
+	const startAnimation = (callback : StartCountFn) => {
+		const currentTime = new Date().getTime()
+		const time = Math.max(0, 16 - (currentTime - lastTime));
+		clearTimer()
+		timer = setTimeout(() => {
+			callback(currentTime + time);
+		}, time);
+		lastTime = currentTime + time
+	}
+
+	let startCount : StartCountFn | null = null
+
+	startCount = (timestamp : number) => {
+
+		const endVal = str2num(props.endVal)
+		if (startTime == 0) startTime = timestamp
+		const progress = timestamp - startTime
+		remainTime = duration - progress
+
+		currentVal = localStartVal + (endVal - localStartVal) * (progress / duration)
+		currentVal = isCountDown.value
+			? localStartVal - (localStartVal - endVal) * (progress / duration)
+			: localStartVal + (endVal - localStartVal) * (progress / duration)
+		
+		//递增
+		if (localStartVal < endVal) {
+			currentVal = Math.min(currentVal, endVal)
+		} else {
+			currentVal = Math.max(currentVal, endVal)
+		}
+
+		displayValue.value = formatNum(currentVal)
+		if (progress < duration) {
+			startAnimation(startCount!)
+		} else {
+			emit('end')
+			lastEndVal = endVal
+		}
+	}
+
+	function handleStart(value : number) {
+		localStartVal = value
+		duration = props.duration
+		startTime = 0
+		paused = false
+		startAnimation(startCount!)
+	}
+
+	//兼容 Android的写法
+	function start() {
+		handleStart(startVal.value)
+	}
+
+	function pause() {
+		clearTimer()
+		paused = true
+	}
+
+	function resume() {
+		if (!paused || remainTime == 0) return
+		startTime = 0
+		duration = remainTime
+		localStartVal = currentVal
+		startAnimation(startCount!)
+		paused = false
+	}
+
+	function reset() {
+		clearTimer()
+		startTime = 0
+		displayValue.value = formatNum(props.startVal)
+		lastEndVal = str2num(props.endVal)
+	}
+
+	function handleRestart() {
+		if (props.autoplay) {
+			start()
+		}
+	}
+
+	watch(() : string | number => props.startVal, () => {
+		handleRestart()
+	})
+
+	watch(() : string | number => props.endVal, (newVal : string | number) => {
+		if (props.restart) {
+			handleRestart()
+		} else {
+			const newNum = str2num(newVal)
+			if (newNum != lastEndVal) {
+				if (props.autoplay) {
+					handleStart(currentVal)
+				}
+				lastEndVal = newNum
+			}
+		}
+	})
+
+	const countToClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+		]
+	})
+
+	const countToStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (hasStrValue(props.color)) css.set('color', props.color!)
+		if (props.fontSize != null) css.set('font-size', addUnit(props.fontSize!))
+		if (props.bold == true) css.set('font-weight', 'bold')
+		return css
+	})
+
+	onMounted(() => {
+		if (props.autoplay) {
+			start()
+		}
+	})
+
+	onUnmounted(() => {
+		clearTimer()
+	})
+
+	defineExpose({
+		start,
+		pause,
+		resume,
+		reset,
+	})
+</script>
+
+<style scoped lang="scss">
+	.rice-count-to {
+		font-size: var(--rice-font-size-md);
+		color: var(--rice-text-color);
+	}
+</style>

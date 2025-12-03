@@ -1,0 +1,134 @@
+import type { Ref } from "vue"
+import { callInterceptor } from "../../utils"
+import { BeforeChangeInterceptor } from "../../types"
+
+export type UsePopup = {
+	realShow : Ref<boolean>,
+	doClose : () => void,
+}
+
+export type UsePopupOptions = {
+	show : Ref<boolean>,
+	position ?: Ref<string>,
+	duration ?: Ref<number>,
+	opacity ?: Ref<boolean>,
+	zoom ?: Ref<boolean>,
+	beforeClose ?: Ref<BeforeChangeInterceptor | null>
+}
+
+export function usePopup(target : Ref<UniElement | null>, options : UsePopupOptions) {
+	const instance = getCurrentInstance()!
+
+	const realShow = ref(false)
+	const closing = ref(false)
+
+	let openTimer : number | null = null
+	let openedTimer : number | null = null
+	let closeTimer : number | null = null
+
+	const handleOpenTimer = () => {
+		if (openTimer != null) clearTimeout(openTimer!)
+		if (openedTimer != null) clearTimeout(openedTimer!)
+	}
+
+	const handleCloseTimer = () => {
+		if (closeTimer != null) clearTimeout(closeTimer!)
+	}
+
+	const open = async () => {
+		const duration = options.duration?.value ?? 300
+		realShow.value = true
+		const position = options.position?.value ?? 'bottom'
+		await nextTick()
+		instance.emit('open')
+		handleOpenTimer()
+		openTimer = setTimeout(() => {
+			target.value?.style.setProperty('transition-duration', duration + 'ms')
+			target.value?.style.setProperty('opacity', '1')
+			if (position != 'center') {
+				target.value?.style.setProperty('transform', 'translate(0px, 0px)')
+			} else {
+				target.value?.style.setProperty('transform', 'translate(-50%, -50%) scale(1)')
+			}
+			openedTimer = setTimeout(() => {
+				instance.emit('opened')
+			}, duration)
+		}, 30)
+
+
+	}
+
+	const close = () => {
+		if (!realShow.value) return
+		const duration = options.duration?.value ?? 300
+		instance.emit('close')
+		const position = options.position?.value ?? 'bottom'
+		const opacity = options.opacity?.value == true ? '0' : '1'
+		target.value?.style.setProperty('opacity', opacity)
+		if (position == 'top') {
+			target.value?.style.setProperty('transform', 'translate(0, -100%)')
+		} else if (position == 'bottom') {
+			target.value?.style.setProperty('transform', 'translate(0px, 100%)')
+		} else if (position == 'left') {
+			target.value?.style.setProperty('transform', 'translate(-100%, 0)')
+		} else if (position == 'right') {
+			target.value?.style.setProperty('transform', 'translate(100%, 0)')
+		} else {
+
+			const scale = options.zoom?.value == true ? 0.6 : 1
+			target.value?.style.setProperty('transform', `translate(-50%, -50%) scale(${scale})`)
+		}
+		handleCloseTimer()
+		closeTimer = setTimeout(() => {
+			realShow.value = false
+			instance.emit('closed')
+		}, duration)
+
+	}
+
+	const doClose = () => {
+		if (!options.show.value || closing.value) return
+		closing.value = true
+		const beforeClose = options.beforeClose?.value
+		if (typeof beforeClose == 'function') {
+			callInterceptor(beforeClose as BeforeChangeInterceptor, {
+				done() {
+					options.show.value = false
+				},
+				complete() {
+					closing.value = false
+				}
+			})
+		} else {
+			options.show.value = false
+			closing.value = false
+		}
+	}
+
+	watch(() : boolean => options.show.value, (newVal : boolean) => {
+		if (newVal && !realShow.value) {
+			open()
+		}
+		if (!newVal && realShow.value) {
+			close()
+		}
+	})
+
+	onMounted(() => {
+		if (options.show.value) {
+			realShow.value = true
+			open()
+		}
+	})
+
+	onUnmounted(() => {
+		handleOpenTimer()
+		handleCloseTimer()
+	})
+
+	return {
+		realShow,
+		doClose,
+	} as UsePopup
+
+}

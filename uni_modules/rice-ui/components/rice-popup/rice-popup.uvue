@@ -1,0 +1,250 @@
+<template>
+	<rice-overlay v-if="overlay" :show="show" :bg-color="overlayBgColor" :duration="duration" :z-index="zIndex-1"
+		:close-on-click-overlay="false" @click="overlayClick" />
+	<view v-if="realShow" :class="popupClass" :style="[popupStyle,customStyle]" ref="popupRef">
+		<rice-icon v-if="closeable" :name="closeIcon" :custom-style="closeIconStyle" size="20px" @click="handleClose" />
+		<slot></slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description Popup
+	 * @property {Number} duration 动画时长，单位ms，默认300
+	 * @property {String} position 位置
+	 * @value top 顶部弹出
+	 * @value bottom 底部弹出
+	 * @value left 左侧弹出
+	 * @value right 右侧弹出
+	 * @value center (默认值)
+	 * @property {Number} zIndex z-index值，默认1001
+	 * @property {Boolean} opacity 是否使用透明度的渐变效果
+	 * @property {Boolean} zoom 是否使用缩放，对center 有效
+	 * @property {Boolean} overlay 是否显示遮罩层
+	 * @property {String} overlayBgColor 遮罩层的背景色
+	 * @property {Boolean} closeable 是否显示关闭图标
+	 * @property {String} closeIcon 关闭图标的icon 名称
+	 * @property {String} closeIconPosition 关闭图标的位置
+	 * @value top-left 左上
+	 * @value top-right 右上
+	 * @value bottom-left 左下
+	 * @value bottom-right 右上
+	 * @property {Boolean} closeOnClickOverlay 是否在点击遮罩层后关闭，默认true
+	 * @property {String|Number} radius 圆角值，默认0px
+	 * @property {String} bgColor 自定义背景色
+	 * @property {Boolean} safeAreaInsetTop 是否开启顶部安全区适配，默认false
+	 * @property {Boolean} safeAreaInsetBottom 是否开启底部安全区适配，默认true
+	 * @property {Function} beforeClose 状态改变前的钩子， 返回 false 或者返回 Promise 且被 reject 则停止关闭,before-close 只会在用户点击关闭按钮或遮罩区域时被调用
+	 * @property {String|Number} marginTop 主要针对center
+	 * @property {Object} customStyle 自定义style
+	 */
+	import { useNamespace, usePopup, useSafeArea } from "../../libs/use"
+	import { addUnit } from "../../libs/utils"
+	import { BeforeChangeInterceptor } from "../../libs/types"
+	import { PopupProps } from "./type.uts"
+	defineOptions({
+		name: 'rice-popup'
+	})
+	const ns = useNamespace('popup')
+	const emit = defineEmits<{
+		open : [],
+		close : [],
+		opened : [],
+		closed : [],
+		clickOverlay : [],
+	}>()
+
+	const props = withDefaults(defineProps<PopupProps>(), {
+		duration: 300,
+		position: 'bottom',
+		zIndex: 999,
+		opacity: true,
+		zoom: true,
+		overlay: true,
+		closeable: true,
+		closeIcon: 'cross',
+		closeIconPosition: 'top-right',
+		closeOnClickOverlay: true,
+		safeAreaInsetTop: false,
+		safeAreaInsetBottom: true,
+		customStyle: () : UTSJSONObject => ({})
+	})
+	const show = defineModel('show', {
+		type: Boolean,
+		default: false,
+	})
+
+	const { safeTop, safeBottom } = useSafeArea()
+
+	const popupRef = shallowRef<UniElement | null>(null)
+
+	const { realShow, doClose } = usePopup(popupRef, {
+		show: show,
+		duration: toRef<number>(() => props.duration),
+		position: toRef<string>(() => props.position),
+		opacity: toRef<boolean>(() => props.opacity),
+		zoom: toRef<boolean>(() => props.zoom),
+		beforeClose: toRef<BeforeChangeInterceptor | null>(() => props.beforeClose as BeforeChangeInterceptor | null),
+	})
+
+	const overlayClick = () => {
+		emit('clickOverlay')
+		if (!props.closeOnClickOverlay) {
+			return
+		}
+		doClose()
+
+	}
+
+	const handleClose = (e : UniPointerEvent) => {
+		e.stopPropagation()
+		doClose()
+	}
+
+	const popupStyle = computed(() => {
+		const css = new Map<string, string | number>()
+		css.set('z-index', props.zIndex)
+		css.set('transition-duration', props.duration + 'ms')
+
+		if (props.bgColor != null) css.set('background-color', props.bgColor!)
+
+		const position = props.position
+		const radius = props.radius != null ? addUnit(props.radius!) : '0px'
+		if (position == 'top') {
+			css.set('border-bottom-left-radius', radius)
+			css.set('border-bottom-right-radius', radius)
+			if (props.safeAreaInsetTop) css.set('padding-top', safeTop.value + 'px')
+		} else if (position == 'bottom') {
+			css.set('border-top-left-radius', radius)
+			css.set('border-top-right-radius', radius)
+			if (props.safeAreaInsetBottom) css.set('padding-bottom', safeBottom.value + 'px')
+		} else if (position == 'left') {
+			css.set('border-top-right-radius', radius)
+			css.set('border-bottom-right-radius', radius)
+			if (props.safeAreaInsetBottom) css.set('padding-bottom', safeBottom.value + 'px')
+			if (props.safeAreaInsetTop) css.set('padding-top', safeTop.value + 'px')
+		} else if (position == 'right') {
+			css.set('border-top-left-radius', radius)
+			css.set('border-bottom-left-radius', radius)
+			if (props.safeAreaInsetBottom) css.set('padding-bottom', safeBottom.value + 'px')
+			if (props.safeAreaInsetTop) css.set('padding-top', safeTop.value + 'px')
+		} else {
+			css.set('border-radius', radius)
+			if (props.marginTop != null) css.set('margin-top', addUnit(props.marginTop!))
+		}
+
+		return css
+	})
+
+	const popupClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+			ns.m(props.position),
+			ns.is('opacity', props.opacity),
+			ns.is('zoom', props.zoom && props.position == 'center'),
+		]
+	})
+
+	const closeClass = computed(() => {
+		return [
+			ns.e('close'),
+			ns.m(`close--${props.closeIconPosition}`)
+		]
+	})
+
+	const closeIconStyle = computed(() => {
+		const basic = {
+			position: 'absolute',
+			zIndex: 9,
+		}
+		const gap = '16px'
+		const closeIconPosition = props.closeIconPosition
+
+		if (closeIconPosition == 'top-right') {
+			basic['top'] = gap
+			basic['right'] = gap
+		} else if (closeIconPosition == 'top-left') {
+			basic['top'] = gap
+			basic['left'] = gap
+		} else if (closeIconPosition == 'bottom-left') {
+			basic['bottom'] = gap
+			basic['left'] = gap
+		} else if (closeIconPosition == 'bottom-right') {
+			basic['bottom'] = gap
+			basic['right'] = gap
+		}
+
+		return basic
+	})
+</script>
+
+<style scoped lang="scss">
+	.rice-popup {
+		position: fixed;
+		transition-property: transform, opacity;
+		transition-duration: 300ms;
+		transform: translate(0, 0) scale(1);
+
+		background-color: var(--rice-background-2);
+		/* #ifndef APP */
+		max-height: 100%;
+		overflow-y: auto;
+
+		/* #endif */
+
+		&--opacity {
+			opacity: 0;
+		}
+
+
+
+		&--center {
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+		}
+
+		&--zoom {
+			transform: translate(-50%, -50%) scale(0.6);
+		}
+
+		&--top {
+			top: 0;
+			left: 0;
+			width: 100%;
+			transform: translate(0, -100%);
+		}
+
+		&--bottom {
+			bottom: 0;
+			left: 0;
+			width: 100%;
+			transform: translate(0px, 100%);
+		}
+
+		&--left {
+			top: 0;
+			bottom: 0;
+			left: 0;
+			transform: translate(-100%, 0);
+		}
+
+		&--right {
+			top: 0;
+			bottom: 0;
+			right: 0;
+			transform: translate(100%, 0);
+		}
+
+		&__close {
+			position: absolute;
+
+			&--top-right {
+				top: 16px;
+				right: 16px;
+			}
+		}
+
+	}
+</style>

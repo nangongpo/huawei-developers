@@ -1,0 +1,195 @@
+<template>
+	<view :class="cellClass" :style="customStyle" :hover-stay-time="100" :hover-class="hoverClass" @click="handleClick">
+		<slot name="leftIcon" v-if="hasLeftIcon">
+			<rice-icon :name="icon" :custom-style="{marginRight:'2px',lineHeight:1.6}" :size="iconSize" />
+		</slot>
+		<view :class="ns.e('title')" :style="splitCssProperty(titleStyle).rectCssProperty">
+			<slot name="title">
+				<text class="rice-cell__title__text" :style="splitCssProperty(titleStyle).textCssProperty">{{title}}</text>
+			</slot>
+			<slot name="label" v-if="hasLabel">
+				<text :class="ns.e('label')" :style="labelStyle">{{label}}</text>
+			</slot>
+		</view>
+		<view v-if="hasValue" :class="ns.e('value')" :style="splitCssProperty(valueStyle).rectCssProperty">
+			<slot name="value">
+				<text class="rice-cell__value__text" :style="splitCssProperty(valueStyle).textCssProperty">{{value}}</text>
+			</slot>
+		</view>
+		<slot name="rightIcon" v-if="$slots['rightIcon']!=null||showArrow">
+			<rice-icon :name="`arrow-${arrowDirection}`" :size="iconSize" />
+		</slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description rice-cell
+	 * @property {String|Number} title 左侧标题
+	 * @property {String|Number} value 右侧内容
+	 * @property {String|Number} label 标题下方的描述信息
+	 * @property {String} size 单元格大小，可选 `large` `medium`
+	 * @value large 大尺寸
+	 * @value medium 中等尺寸
+	 * @property {String} icon 左侧图标的名称或图片链接
+	 * @property {String} url 点击跳转的页面地址
+	 * @property {Boolean} border 是否显示下边框
+	 * @property {Boolean} clickable 是否开启点击反馈
+	 * @property {Boolean} arrow 是否显示右侧箭头
+	 * @property {String} arrowDirection 右侧箭头方向
+	 * @value up 上箭头
+	 * @value down 下箭头
+	 * @value left 左箭头
+	 * @value right 右箭头
+	 * @property {Boolean} center 内容是否垂直居中
+	 * @property {Object} titleStyle 自定义标题样式
+	 * @property {Object} valueStyle 自定义value样式
+	 * @property {Object} labelStyle 自定义label样式
+	 * @property {Object} customStyle 自定义样式
+	 */
+	import { useNamespace } from "../../libs/use"
+	import { hasStrValue, splitCssProperty, addUnit, debugWarn } from "../../libs/utils"
+	import { CellProps } from "./type.uts"
+
+	defineOptions({
+		name: 'rice-cell'
+	})
+
+	const ns = useNamespace('cell')
+	const slots = useSlots()
+	const emit = defineEmits<{
+		click : []
+	}>()
+
+	const props = withDefaults(defineProps<CellProps>(), {
+		arrowDirection: 'right',
+		border: true,
+		clickable: true,
+		arrow: null,
+		center: false,
+		titleStyle: () : UTSJSONObject => ({}),
+		valueStyle: () : UTSJSONObject => ({}),
+		labelStyle: () : UTSJSONObject => ({}),
+		customStyle: () : UTSJSONObject => ({}),
+	})
+
+	//传了 arrow就用arrow的值，没传arrow的情况下 url有值就显示右箭头
+	const showArrow = computed(() => props.arrow ?? hasStrValue(props.url))
+	const hasLeftIcon = computed(() => slots['leftIcon'] != null || hasStrValue(props.icon))
+	const hasValue = computed(() => slots['value'] != null || hasStrValue(props.value))
+	const hasLabel = computed(() => slots['label'] != null || hasStrValue(props.label))
+
+	const iconSize = computed(() => props.size == 'large' ? '17px' : '16px')
+
+	const handleClick = (e : UniPointerEvent) => {
+		if (hasStrValue(props.url)) {
+			uni.navigateTo({
+				url: props.url!,
+				fail: err => {
+					debugWarn('Cell', err.errMsg)
+				}
+			})
+		}
+		emit('click')
+	}
+
+
+	const cellClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+			ns.m(props.size),
+			ns.is('center', props.center),
+			ns.is('border', props.border),
+		]
+	})
+
+	const hoverClass = computed(() => props.clickable ? 'rice-cell--hover' : 'none')
+</script>
+
+<style scoped lang="scss">
+	@import "../../libs/style/mixins/hairline";
+
+	.rice-cell {
+		--rice-cell-title-size: 15px;
+		--rice-cell-value-size: 15px;
+		--rice-cell-label-size: 13px;
+		flex-direction: row;
+		padding: 14px var(--rice-padding-md);
+		background-color: var(--rice-cell-background);
+		width: 100%;
+		/* #ifdef WEB */
+		cursor: pointer;
+
+		/* #endif */
+		&--medium {
+			--rice-cell-title-size: 16px;
+			--rice-cell-value-size: 16px;
+			--rice-cell-label-size: 14px;
+		}
+
+		&--large {
+			--rice-cell-title-size: 17px;
+			--rice-cell-value-size: 17px;
+			--rice-cell-label-size: 15px;
+			padding: var(--rice-font-size-lg);
+		}
+
+		&__title {
+			flex: 1;
+			padding-right: 2px;
+
+			&__text {
+				line-height: 1.6;
+				color: var(--rice-text-color);
+				font-size: var(--rice-cell-title-size);
+				/* #ifndef APP */
+				word-wrap: break-word;
+				/* #endif */
+			}
+		}
+
+		&__value {
+			flex: 1;
+			padding-right: 2px;
+
+			/* #ifndef APP */
+			text-align: right;
+			word-break: break-all;
+
+			/* #endif */
+			&__text {
+				line-height: 1.6;
+				color: var(--rice-text-color-2);
+				font-size: var(--rice-cell-value-size);
+				text-align: right;
+				/* #ifndef APP */
+				word-wrap: break-word;
+				
+				/* #endif */
+			}
+		}
+
+		&__label {
+			color: var(--rice-text-color-2);
+			font-size: var(--rice-cell-label-size);
+			margin-top: 5px;
+			/* #ifndef APP */
+			word-wrap: break-word;
+			/* #endif */
+		}
+
+		&--center {
+			align-items: center;
+		}
+
+		&--border {
+			@include hairline-bottom;
+		}
+
+		&--hover {
+
+			background-color: var(--rice-hover-color);
+		}
+	}
+</style>

@@ -1,0 +1,71 @@
+<template>
+	<view class="rice-row" :style="[rowStyle,customStyle]">
+		<slot></slot>
+	</view>
+</template>
+
+<script setup>
+	/**
+	 * @description rice-row
+	 * @property {Number} gutter 列元素之间的间距，默认0，单位px
+	 * @property {String} justify flex 布局下的水平排列方式，可选'end' | 'center' | 'space-around' | 'space-between' ，默认 start
+	 * @value start start
+	 * @value end end
+	 * @value center center
+	 * @value space-around space-around
+	 * @value space-between space-between
+	 * @property {String} align flex 布局下的垂直排列方式，可选 'center' | 'bottom' |'top'
+	 * @value center center
+	 * @value bottom bottom
+	 * @value top top
+	 * @property {Object} customStyle 自定义style
+	 */
+	import { addUnit } from '../../libs/utils';
+	import { RowProps, RowProvide, rowInjectKey } from './index.uts';
+	
+	defineOptions({
+		name: 'rice-row'
+	})
+
+	const props = withDefaults(defineProps<RowProps>(), {
+		gutter: 0,
+		justify: 'start',
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const alignItems = computed(() => {
+		if (props.align == 'top') return 'flex-start'
+		else if (props.align == 'center') return 'center'
+		else if (props.align == 'bottom') return 'flex-end'
+		return ""
+	})
+
+	const rowStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.gutter > 0) {
+			const gutterNum = addUnit(props.gutter / 2)
+			css.set('margin-left', `-${gutterNum}`)
+			css.set('margin-right', `-${gutterNum}`)
+		}
+		let justifyContent = props.justify
+		if (props.justify == 'start' || props.justify == 'end') {
+			justifyContent = 'flex-' + justifyContent
+		}
+		css.set('justify-content', justifyContent)
+		if (alignItems.value != "") {
+			css.set('align-items', alignItems.value)
+		}
+		return css
+	})
+
+	provide(rowInjectKey, {
+		gutter: toRef<number>(() => props.gutter),
+	} as RowProvide)
+</script>
+
+<style scoped lang="scss">
+	.rice-row {
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+</style>

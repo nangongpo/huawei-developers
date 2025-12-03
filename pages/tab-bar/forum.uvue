@@ -1,0 +1,77 @@
+<script setup lang="uts">
+	import { TabsOptions, TabsClickTab, TabsChange } from '@/components/base-tabs/type.uts'
+
+	const tabsOptions = shallowRef<TabsOptions[]>([])
+	const activeIndex = ref(0)
+	
+	function goSearch() {
+		uni.navigateTo({
+			url: '/pages/forum/search/search'
+		})
+	}
+	
+	function tabClick(e: TabsClickTab) {
+		console.log('TabsClickTab', e)
+	}
+	
+	onMounted(() => {
+		tabsOptions.value = [
+			{ name: '推荐', value: '' },
+			{ name: 'HarmonyOS 5及以上', value: '' },
+			{ name: 'HarmonyOS SDK', value: '' },
+			{ name: '激励计划', value: '' },
+			{ name: 'HarmonyOS 3/4', value: '' },
+			{ name: '设备开发', value: '' },
+			{ name: 'HarmonyOS Connect', value: '' }
+		]
+	})
+</script>
+
+<template>
+	<!-- 状态栏占位 -->
+	<view class="status-bar"></view>
+	<view class="forum-header uni-padding-wrap">
+		<view class="search-box flex-grow-1 uni-common-mr" @click="goSearch">
+			<uni-iconfont name="search" class="text-placeholder" />
+			<text class="text-placeholder">搜索...</text>
+		</view>
+		<!-- 消息中心 -->
+		<message-center-icon></message-center-icon>
+	</view>
+	<view class="uni-padding-wrap">
+<!-- 		<base-tabs
+			v-model="activeIndex"
+			line-height="2px"
+			line-width="100%"
+			:item-style="{ fontSize: '18px' }"
+			:active-style="{ fontSize: '24px' }"		
+			:list="tabsOptions" 
+			@clickTab="tabClick">
+		</base-tabs> -->
+	</view>
+	<scroll-view class="flex-1 uni-padding-wrap">
+		论坛
+	</scroll-view>
+</template>
+
+<style lang="scss" scoped>
+	.forum-header {
+		height: $uni-navbar-height;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+	.search-box {
+		color: $uni-text-color-placeholder;
+		background: $uni-bg-color-grey;
+		height: 44px;
+		border-radius: 22px;
+		padding: 0 16px;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+	.search-box .uni-iconfont {
+		margin-right: 12px;
+	}
+</style>

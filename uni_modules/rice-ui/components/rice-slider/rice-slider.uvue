@@ -1,0 +1,902 @@
+<template>
+
+	<!-- #ifdef APP -->
+	<view :class="sliderClass" ref="sliderRef" :style="[sliderStyle,customStyle]" @touchstart="onCtxTouchStart"
+		@touchmove="onCtxTouchmove" @touchend="onCtxTouchEnd" @touchcancel="onCtxTouchEnd"></view>
+	<!-- #endif -->
+
+	<!-- #ifndef APP -->
+	<view :class="sliderClass" :style="[sliderStyle,customStyle]">
+		<text v-if="_valuePosition=='right'&&isRange"
+			class="rice-slider__value rice-slider__value__left">{{formatValuev2(minValue)}}</text>
+		<view class="rice-slider__content" @touchstart="onTouchStart" @touchmove.stop.prevent="onTouchmove"
+			@touchend="onTouchend" @touchcancel="onTouchend" @mousedown="onTouchStart" @mousemove="onTouchmove"
+			@mouseup="onTouchend">
+			<view class="rice-slider__bar" :style="barStyle"></view>
+			<view v-if="!isRange" class="rice-slider__bar--single" :style="barSingleStyle"></view>
+			<view class="rice-slider__wrapper" ref="wrapperRef" :style="{height:_trackHeight+'px'}">
+				<view class="rice-slider__track" :style="trackStyle"></view>
+				<view v-for="item in sliderButton" :key="item" class="rice-slider__button" :data-button="item"
+					:style="getBtnStyle(item)">
+					<text v-if="_valuePosition=='top'"
+						class="rice-slider__button__text">{{formatValuev2(item=='first'?initData.firstValue:initData.secondValue)}}</text>
+				</view>
+
+			</view>
+		</view>
+		<text v-if="_valuePosition=='right'"
+			class="rice-slider__value">{{formatValuev2(isRange?maxValue:initData.firstValue)}}</text>
+	</view>
+
+	<!-- #endif -->
+
+</template>
+
+<script setup>
+	/**
+	 * @description rice-slider 该组件在APP上使用了DrawableContext，在微信小程序上使用了WXS技术，故在滑动过程中可以获得细腻流畅的跟随效果
+	 * @property {String|Number} modelValue 绑定的值，也可以使用v-mode
+	 * @property {Number} min 滑块的最小值 默认0
+	 * @property {Number} max 滑块的最大值 默认100
+	 * @property {Number} step 步长 默认 1,确保(max - min)能被step整除，这样最大值才能被选中
+	 * @property {Boolean} range 是否开启双滑块模式,默认false
+	 * @property {Boolean} showValue 是否显示当前的值，默认flase
+	 * @property {String} valueColor 文字颜色
+	 * @property {String} valuePosition value显示的位置，默认 top 可选 right
+	 * @property {Function} formatValuetip 格式化value信息
+	 * @property {Boolean} disabled 是否禁用,默认false
+	 * @property {String} mode 滑块风格，默认 default 可选capsule 胶囊
+	 * @value default 默认
+	 * @value capsule 胶囊状
+	 * @property {Boolean} readonly 是否只读,默认false
+	 * @property {Number|String} trackHeight 进度条的高度，mode 为 `default` 时有效默认 4px ,mode 为 capsule 是 默认18px
+	 * @property {Number|String} buttonSize 滑块按钮的尺寸，默认25px,mode 为 `default` 时有效,胶囊态下的按钮尺寸和track的高度一致，buttonSize参数无效
+	 * @property {String} buttonColor 滑块按钮的背景色
+	 * @property {String} buttonBorderColor 滑块按钮的边框色
+	 * @property {String} activeColor 进度条激活态的颜色
+	 * @property {String} inactiveColor 进度条非激活态的颜色
+	 * @property {Object} customStyle 自定义style
+	 */
+	import { isDark } from '../../libs/store';
+	import { useNamespace, useTouch, useCssVar } from '../../libs/use';
+	import { hasStrValue, isSameValue, getPxNum, clamp, addUnit, debugWarn } from "../../libs/utils";
+	import { fillModelValue, MAR_SPACE, CAPSULE_SPACE, RIGHT_TEXT_WIDTH, TOP_TEXT_HEIGHT } from "./utils"
+	import { formDisabledInjectKey, formReadonlyInjectKey } from "../rice-form"
+	import { SliderProps, SliderInitData } from './type.uts';
+
+	// #ifdef APP
+	import { drawLine, drawCapsule, drawArc, drawRect } from "./composables/use-draw"
+	// #endif
+
+
+
+
+	const ns = useNamespace('slider')
+	// #ifndef APP
+	const touch = useTouch()
+	// #endif
+	const emit = defineEmits<{
+		change : [value: number[] | number],
+		changing : [value: number[] | number],
+	}>()
+
+	const props = withDefaults(defineProps<SliderProps>(), {
+		min: 0,
+		max: 100,
+		step: 1,
+		range: false,
+		showValue: false,
+		mode: 'default',
+		valuePosition: 'top',
+		buttonSize: '25px',
+		customStyle: () : UTSJSONObject => ({})
+	})
+
+	const modelValue = defineModel({
+		type: [Array, Number] as PropType<number[] | number>,
+		default: 0
+	})
+
+	const initData = reactive<SliderInitData>({
+		dragging: 'none',
+		firstValue: 0,
+		secondValue: 0,
+		startValue: 0,
+		sliderWidth: 0,
+		sliderHeight: 0,
+		trackWidth: 0,
+		trackHeight: 0,
+	})
+
+	const formDisabled = inject<Ref<boolean | null> | null>(formDisabledInjectKey, null)
+	const formReadonly = inject<Ref<boolean | null> | null>(formReadonlyInjectKey, null)
+
+	const _disabled = computed<boolean>(() => (formDisabled?.value ?? false) || props.disabled == true)
+	const _readonly = computed<boolean>(() => (formReadonly?.value ?? false) || (props.readonly == true))
+
+	const space = computed(() => props.max - props.min)
+
+	//range 并且 绑定值需要是一个数组
+	const isRange = computed<boolean>(() => props.range && Array.isArray(modelValue.value))
+	const _step = computed<number>(() => props.step > 0 ? props.step : 1)
+
+	// value值显示的位置
+	const _valuePosition = computed(() => props.showValue ? props.valuePosition : 'none')
+
+	//进度条轨道的高度 app/web 通用
+	const _trackHeight = computed(() => props.trackHeight != null
+		? getPxNum(props.trackHeight!)
+		: (props.mode == 'capsule' ? 18 : 4))
+
+	//按钮的半径 app/web 通用
+	const buttonRadius = computed(() => {
+		//胶囊态下的按钮尺寸和track的高度一致，buttonSize参数无效
+		if (props.mode == 'capsule') {
+			// #ifdef APP
+			return _trackHeight.value / 2 + 1
+			// #endif
+			// #ifndef APP
+			return _trackHeight.value / 2
+			// #endif
+		}
+		return getPxNum(props.buttonSize) / 2
+	})
+
+	// #ifndef APP
+	const _buttonSize = computed(() => {
+
+		if (props.mode == 'capsule') {
+			return _trackHeight.value + 'px'
+		}
+		return addUnit(props.buttonSize)
+	})
+
+	const doulbeTarMar = computed(() => trackMar.value * 2 + 'px')
+
+	// #endif
+
+	//轨道两侧的边距 app/web 通用
+	const trackMar = computed(() => props.mode == 'capsule' ? CAPSULE_SPACE : 0)
+	const minValue = computed(() => Math.min(initData.firstValue, initData.secondValue))
+	const maxValue = computed(() => Math.max(initData.firstValue, initData.secondValue))
+
+	const decimal = computed(() => {
+		const arr = [props.min, props.max, props.step] as number[]
+		const decimals = arr.map(v => {
+			const d = v.toString().split('.')
+			return d.length >= 2 ? d[1].length : 0
+		})
+		return Math.max(...decimals)
+	})
+
+	const updateModelValue = (value : number[] | number) => {
+		if (!isSameValue(modelValue.value, value)) {
+			modelValue.value = value
+		}
+	}
+
+	const format = (value : number) => {
+		return parseFloat(value.toFixed(decimal.value))
+	}
+
+	const formatValuev2 = (value : number) : string => {
+		value = format(value)
+		const fn = props.formatValuetip
+		if (typeof fn == 'function') {
+			const newVal = fn!(value)
+			return typeof newVal == 'number' ? newVal.toString() : newVal as string
+		}
+		return value.toString()
+	}
+
+
+	/**
+	 * 设置值
+	 */
+	const setValues = () => {
+		if (props.min > props.max) {
+			debugWarn('Slider', 'min shoule not be greater than max.')
+		}
+		if (isRange.value) {
+			const values = fillModelValue(modelValue.value as number[], props.min, props.max)
+			//values[0] 会恒小于等于 values[1]
+			initData.firstValue = clamp(values[0], props.min, props.max)
+			initData.secondValue = clamp(values[1], props.min, props.max)
+			updateModelValue([initData.firstValue, initData.secondValue])
+		} else {
+			if (typeof modelValue.value != 'number') {
+				initData.firstValue = props.min
+			} else {
+				initData.firstValue = clamp(modelValue.value as number, props.min, props.max)
+			}
+			updateModelValue(initData.firstValue)
+		}
+	}
+
+	const updateStartValue = () => {
+		if (Array.isArray(modelValue.value)) {
+			initData.startValue = modelValue.value.slice()
+		} else {
+			initData.startValue = modelValue.value as number
+		}
+	}
+
+
+	const getModelValue = () => {
+		let newVals = isRange.value
+			? [minValue.value, maxValue.value].map(v => format(v))
+			: format(initData.firstValue)
+		return newVals
+	}
+
+
+	// #ifdef APP
+
+	const trackLeft = computed(() => {
+		let left = trackMar.value
+		if (_valuePosition.value == 'right' && isRange.value) {
+			left += RIGHT_TEXT_WIDTH
+		}
+		return left
+	})
+
+
+	//track 轨道右侧的位置
+	const trackRight = computed(() => {
+		let right = trackMar.value
+		if (_valuePosition.value == 'right') {
+			right += RIGHT_TEXT_WIDTH
+		}
+		return initData.sliderWidth - right
+	})
+
+	//track 轨道 的宽度,右坐标减去左坐标
+	const trackWidth = computed(() => trackRight.value - trackLeft.value)
+
+	//track y轴的坐标
+
+	const trackY = computed(() => {
+		let y = (initData.sliderHeight - _trackHeight.value) / 2
+		if (_valuePosition.value == 'top') {
+			y += TOP_TEXT_HEIGHT / 2
+		}
+		return y
+	})
+
+	const sliderRef = shallowRef<UniElement | null>(null)
+	const primaryColor = useCssVar('--rice-primary-color', sliderRef)
+	const textColor = computed<string>(() => props.valueColor ?? (isDark.value ? '#f5f5f5' : '#323233'))
+	const inactiveTrackColor = computed<string>(() => props.inactiveColor ?? (isDark.value ? '#383838' : '#dcdcdc'))
+	const activeTrackColor = computed<string>(() => props.activeColor ?? primaryColor.value)
+	const buttonColor = computed<string>(() => props.buttonColor ?? '#fff')
+	const buttonBorderColor = computed<string>(() => props.buttonBorderColor ?? (isDark.value ? '#383838' : '#e7e7e7'))
+
+	//滑块实际可用的宽度 app/web 通用
+	const availableWidth = computed(() => trackWidth.value - buttonRadius.value * 2)
+
+
+	/**
+	 * 获取按钮所在的位置
+	 */
+	const getPosition = (value : number) => {
+		const offset = (value - props.min) / space.value * availableWidth.value
+		return offset + trackLeft.value + buttonRadius.value
+	}
+
+	/**
+	 * 绘制track轨道
+	 */
+	const drawTrack = (ctx : DrawableContext) => {
+		if (props.mode == 'capsule') {
+			//外层的胶囊要加上边距
+			const x = trackLeft.value - trackMar.value
+			const width = trackWidth.value + trackMar.value * 2
+			const height = _trackHeight.value + trackMar.value * 2
+			let y = trackY.value - trackMar.value
+			drawCapsule(ctx, x, y, width, height, inactiveTrackColor.value)
+		} else {
+			drawCapsule(ctx, trackLeft.value, trackY.value, trackWidth.value, _trackHeight.value, inactiveTrackColor.value)
+		}
+	}
+
+	/**
+	 * 绘制激活的track轨道
+	 */
+
+	const drawActiveTrack = (ctx : DrawableContext) => {
+		const y = trackY.value
+		if (isRange.value) {
+			const x = getPosition(minValue.value)
+			const width = getPosition(maxValue.value) - x
+
+			ctx.beginPath()
+			ctx.fillStyle = activeTrackColor.value;
+			ctx.fillRect(x, y, width, _trackHeight.value)
+		} else {
+			const x = trackLeft.value
+			const width = getPosition(initData.firstValue)
+			drawCapsule(ctx, x, y, width, _trackHeight.value, activeTrackColor.value, false)
+		}
+	}
+
+	const drawText = (ctx : DrawableContext) => {
+		// #ifndef APP-IOS
+		let y = initData.sliderHeight / 2 + 5
+		// #endif
+		// #ifdef APP-IOS
+		let y = initData.sliderHeight / 2 + 8
+		// #endif
+		ctx.fillStyle = props.valueColor ?? textColor.value
+		ctx.font = '14px'
+
+		if (isRange.value) {
+			const minVal = formatValuev2(minValue.value)
+			const maxVal = formatValuev2(maxValue.value)
+			if (_valuePosition.value == 'top') {
+				ctx.textAlign = 'center'
+				ctx.fillText(minVal, getPosition(minValue.value), TOP_TEXT_HEIGHT)
+				ctx.fillText(maxVal, getPosition(maxValue.value), TOP_TEXT_HEIGHT)
+			} else {
+				ctx.textAlign = 'right'
+				ctx.fillText(minVal, trackLeft.value - 3, y)
+				ctx.textAlign = 'left'
+				ctx.fillText(maxVal, trackRight.value + 3, y)
+			}
+		} else {
+			const val = formatValuev2(initData.firstValue)
+			if (_valuePosition.value == 'top') {
+				ctx.textAlign = 'center'
+				ctx.fillText(val, getPosition(initData.firstValue), TOP_TEXT_HEIGHT)
+			} else {
+				ctx.textAlign = 'left'
+				ctx.fillText(val, trackRight.value + 3, y)
+			}
+		}
+
+	}
+
+	/**
+	 * 绘制button 按钮
+	 */
+
+	const drawButton = (ctx : DrawableContext) => {
+		let y = initData.sliderHeight / 2
+		if (_valuePosition.value == 'top') {
+			y += TOP_TEXT_HEIGHT / 2
+		}
+		const showValue = _valuePosition.value != 'none'
+		//减去1px的边框
+		const r = buttonRadius.value - 1
+		const x = getPosition(initData.firstValue)
+
+		drawArc(ctx, x, y, r, buttonBorderColor.value, buttonColor.value)
+		if (showValue) {
+			drawText(ctx)
+		}
+		if (isRange.value) {
+			const x = getPosition(initData.secondValue)
+			drawArc(ctx, x, y, r, buttonBorderColor.value, buttonColor.value)
+		}
+	}
+
+	//开始绘制
+	const startDraw = async () => {
+		//#ifdef APP-HARMONY
+		await nextTick()
+		//#endif
+		if (sliderRef.value == null) return
+		const ctx = sliderRef.value.getDrawableContext()!
+		ctx.reset()
+		//绘制track轨道
+		drawTrack(ctx)
+		//绘制激活的track轨道
+		drawActiveTrack(ctx)
+		//绘制button按钮
+		drawButton(ctx)
+		//更新绘图
+		ctx.update()
+	}
+
+	const positionToValue = (x : number) : number => {
+		const baseValue = props.min + ((x - trackLeft.value - buttonRadius.value) / availableWidth.value) * space.value
+		const step = props.step <= 0 ? 1 : props.step
+		if (step == 1) {
+			return clamp(baseValue, props.min, props.max)
+		}
+		let stepValue = Math.round(baseValue / step) * step
+		stepValue = format(stepValue)
+		return clamp(stepValue, props.min, props.max)
+	}
+
+
+
+
+	const onCtxTouchStart = (e : UniTouchEvent) => {
+		if (_disabled.value || _readonly.value) return
+		initData.dragging = "none"
+		updateStartValue()
+		const rect = e.target!.getBoundingClientRect()
+		const touches = e.touches[0]
+		const x = touches.clientX - rect.left
+		//判断点击的是哪个滑块
+		const firstDistance = Math.abs(x - getPosition(initData.firstValue))
+		const secondDistance = Math.abs(x - getPosition(initData.secondValue))
+		const flag = isRange.value ? firstDistance <= secondDistance : true
+		if (firstDistance < buttonRadius.value * 1.5 && flag) {
+			initData.dragging = "first"
+		} else if (isRange.value && secondDistance < buttonRadius.value * 1.5) {
+			initData.dragging = "second"
+		}
+	}
+
+	const onCtxTouchmove = (e : UniTouchEvent) => {
+		if (_disabled.value || _readonly.value || initData.dragging == "none") return
+		const rect = e.target!.getBoundingClientRect()
+		const touches = e.touches[0]
+		let x = touches.clientX - rect.left
+		let newValue = positionToValue(x)
+		if (initData.dragging == 'first') {
+			initData.firstValue = newValue
+		} else if (initData.dragging == 'second') {
+			initData.secondValue = newValue
+		}
+		startDraw()
+		let newVals = getModelValue()
+		updateModelValue(newVals)
+		emit('changing', newVals)
+		e.preventDefault()
+	}
+
+	const onCtxTouchEnd = async () => {
+		initData.dragging = 'none'
+		let newVals = getModelValue()
+		if (!isSameValue(newVals, modelValue.value)) {
+			setValues()
+			startDraw()
+		}
+		if (!isSameValue(initData.startValue, modelValue.value)) {
+			emit('change', newVals)
+		}
+	}
+
+	// #endif
+
+	const sliderStyle = computed(() => {
+		const css = new Map<string, string>()
+		//slider的高度就是小球的高度+上下6px的边距 + 顶部文字的高度（如果有的话）
+		let baseHeight = props.mode == 'capsule'
+			? (buttonRadius.value + MAR_SPACE + CAPSULE_SPACE) * 2
+			: (buttonRadius.value + MAR_SPACE) * 2
+
+		//#ifdef APP
+		if (_valuePosition.value == 'top') {
+			baseHeight += TOP_TEXT_HEIGHT
+		}
+		css.set('min-height', baseHeight + 'px')
+		//#endif
+
+		//#ifndef APP
+		if (_valuePosition.value == 'top') {
+			css.set('padding-top', TOP_TEXT_HEIGHT + 'px')
+			css.set('padding-bottom', MAR_SPACE / 2 + 'px')
+		}
+		css.set('height', baseHeight + 'px')
+
+		//#endif
+		return css
+	})
+
+	const sliderClass = computed(() => {
+		return [
+			ns.b(""),
+			ns.theme(),
+			ns.is("disabled", _disabled.value),
+			// #ifndef APP
+			ns.m(props.mode),
+			// #endif
+		]
+	})
+
+	const resize = async () => {
+		// #ifndef APP
+		if (wrapperRef.value != null) {
+			const rect = await wrapperRef.value!.getBoundingClientRectAsync()!
+			initData.trackWidth = rect.width
+			initData.trackHeight = rect.height
+		}
+		// #endif
+		//#ifdef APP
+		if (sliderRef.value != null) {
+			const rect = await sliderRef.value!.getBoundingClientRectAsync()!
+			initData.sliderWidth = rect.width
+			initData.sliderHeight = rect.height
+		}
+		//#endif
+	}
+
+	/**
+	 * 初始化
+	 */
+
+	const init = async () => {
+		setValues()
+		await nextTick()
+		await resize()
+		// #ifdef APP
+		startDraw()
+		// #endif
+	}
+	const isDragging = computed(() => initData.dragging === 'first' || initData.dragging === 'second')
+
+	// #ifndef APP
+
+	const wrapperRef = shallowRef<UniElement | null>(null)
+
+	const sliderButton = computed(() => isRange.value ? ['first', 'second'] : ['first'])
+
+	const calcButtonOffset = (x : number) => {
+		const min = props.min ?? 0
+		return ((x - min) * 100) / space.value + '%'
+	}
+
+	const getBtnStyle = (type : string) => {
+		const css = {
+			height: buttonRadius.value * 2 + 'px',
+			width: buttonRadius.value * 2 + 'px',
+			borderColor: props.buttonBorderColor ?? (isDark.value ? '#383838' : '#e7e7e7'),
+		}
+		if (type == 'first') {
+			css.left = calcButtonOffset(initData.firstValue)
+		} else {
+			css.left = calcButtonOffset(initData.secondValue)
+		}
+		if (hasStrValue(props.buttonColor)) {
+			css.backgroundColor = props.buttonColor
+		}
+
+
+		return css
+	}
+	const startPosition = ref(0)
+
+	const getCurrentPosition = (x : number) => {
+		return ((x - props.min) / (props.max - props.min)) * 100 + '%'
+	}
+
+	const setPosition = (newPosition : number) => {
+		newPosition = clamp(newPosition, 0, 100)
+		const min = props.min
+		const max = props.max
+		const lengthStep = 100 / ((max - min) / _step.value)
+		const steps = Math.round(newPosition / lengthStep)
+		let value = steps * lengthStep * (max - min) * 0.01 + min
+		return parseFloat(value.toFixed(decimal.value))
+	}
+	//@ts-ignore
+	const onTouchStart = (e : UniTouchEvent | UniMouseEvent) => {
+		if (_disabled.value || _readonly.value) return
+		const dataset = e.target?.dataset?.['button'] ?? 'none'
+		initData.dragging = dataset
+		if (initData.dragging == 'none') return
+		updateStartValue()
+		resize()
+		//@ts-ignore
+		touch.start(e)
+		const x = touch.getClientXY(e).clientX
+		const value = dataset == 'first' ? initData.firstValue : initData.secondValue
+		startPosition.value = parseFloat(getCurrentPosition(value))
+
+	}
+
+	//@ts-ignore
+	const onTouchmove = (e : UniTouchEvent | UniMouseEvent) => {
+		if (_disabled.value || _readonly.value || !isDragging.value) return
+		//@ts-ignore
+		touch.move(e)
+		const x = touch.getClientXY(e).clientX
+		const diff = (touch.deltaX.value / initData.trackWidth) * 100
+		const newVal = startPosition.value + diff
+		const value = setPosition(newVal)
+		if (initData.dragging == 'first') {
+			initData.firstValue = value
+		} else if (initData.dragging == 'second') {
+			initData.secondValue = value
+		}
+		let newVals = getModelValue()
+		updateModelValue(newVals)
+		emit('changing', newVals)
+		e.preventDefault()
+
+
+	}
+
+	const onTouchend = () => {
+		touch.end()
+		initData.dragging = 'none'
+		let newVals = getModelValue()
+		if (!isSameValue(initData.startValue, modelValue.value)) {
+			emit('change', newVals)
+		}
+	}
+
+	const trackStyle = computed(() => {
+		const css = new Map<string, string>()
+		let width : number;
+		let left = 0
+		if (isRange.value) {
+			width = ((maxValue.value - minValue.value) * 100) / space.value
+			left = ((minValue.value - props.min) * 100) / space.value
+		} else {
+			width = ((initData.firstValue - props.min) * 100) / space.value
+		}
+
+		if (hasStrValue(props.activeColor)) css.set('background-color', props.activeColor)
+		css.set('height', _trackHeight.value + 'px')
+
+		css.set('width', `${width}%`)
+		css.set('left', `${left}%`)
+		return css
+
+	})
+
+	const barStyle = computed(() => {
+		const css = new Map<string, string>()
+		if (props.mode == 'capsule') {
+			css.set('height', _trackHeight.value + MAR_SPACE + 'px')
+		} else {
+			css.set('height', _trackHeight.value + 'px')
+		}
+		if (hasStrValue(props.inactiveColor)) css.set('background-color', props.inactiveColor)
+		return css
+	})
+
+	const barSingleStyle = computed(() => {
+		const css = new Map<string, string>()
+		css.set('width', _buttonSize.value)
+		css.set('left', trackMar.value + 'px')
+		css.set('height', _trackHeight.value + 'px')
+		if (hasStrValue(props.activeColor)) css.set('background-color', props.activeColor)
+		return css
+	})
+
+	// #endif
+
+
+	watch(modelValue, (newVal : number | number[], oldVal : number | number[]) => {
+		const same = isSameValue(newVal, oldVal)
+		if (isDragging.value || same) {
+			return
+		}
+		setValues()
+		// #ifdef APP
+		startDraw()
+		// #endif
+
+	}, {
+		deep: true,
+	})
+
+	watch([() => props.min, () => props.max], () => {
+		setValues()
+		// #ifdef APP
+		startDraw()
+		// #endif
+	})
+
+	// #ifdef APP
+
+
+
+	watch([
+		isDark,
+		() : string | null => props.valueColor,
+		() : string | null => props.buttonColor,
+		() : string | null => props.buttonBorderColor,
+		() : string | null => props.activeColor,
+		() : string | null => props.inactiveColor], async () => {
+			await nextTick()
+			startDraw()
+		}, {
+		deep: true,
+	})
+	let timer = 0
+	watch([
+		() : boolean => props.showValue,
+		() : string => props.valuePosition,
+		() : string | number | null => props.trackHeight,
+		() : string | number => props.buttonSize], async () => {
+			await nextTick()
+			timer = setTimeout(() => {
+				resize().then(() => {
+					startDraw()
+				})
+			}, 30)
+		}, {
+		deep: true,
+	})
+
+	// #endif
+
+	// #ifdef APP
+	let obServer : UniResizeObserver | null = null
+	const observe = async () => {
+		await nextTick()
+		if (sliderRef.value == null) return
+		obServer = new UniResizeObserver((entries : UniResizeObserverEntry[]) => {
+			const el = entries.find(v => v.target == sliderRef.value)
+			if (el != null) {
+				initData.sliderWidth = el.contentRect.width
+				initData.sliderHeight = el.contentRect.height
+				if (initData.dragging == 'none') {
+					startDraw()
+				}
+			}
+		})
+		obServer!.observe(sliderRef.value!)
+	}
+
+	// #endif
+
+
+	// #ifdef APP-HARMONY
+	let observeTimer : number | null = 0
+	// #endif
+
+	onMounted(() => {
+		init()
+		// #ifdef APP-HARMONY
+		observeTimer = setTimeout(() => {
+			observe()
+		}, 200);
+		// #endif
+
+		// #ifdef APP-ANDROID || APP-IOS
+		observe()
+		// #endif
+		// #ifdef WEB
+		window.addEventListener('resize', resize)
+		// #endif 
+
+	})
+
+
+	onUnmounted(() => {
+		// #ifdef WEB
+		window.removeEventListener('resize', resize)
+		// #endif
+		// #ifdef APP
+		clearTimeout(timer)
+		if (sliderRef.value != null) {
+			obServer!.unobserve(sliderRef.value!)
+		}
+		// #endif
+		// #ifdef APP-HARMONY
+		if (observeTimer != null) clearTimeout(observeTimer)
+		// #endif
+	})
+</script>
+
+
+
+<style scoped lang="scss">
+	@mixin textStyle {
+		color: var(--rice-text-color);
+		font-size: 14px;
+		word-break: keep-all;
+		width: 40px;
+	}
+
+	.rice-slider {
+		flex-direction: row;
+		align-items: center;
+		width: 100%;
+		flex-shrink: 1;
+		/* #ifndef APP */
+
+		overflow: visible;
+		box-sizing: content-box;
+
+		/* #endif */
+
+		/* #ifndef APP */
+
+		&__content {
+			flex-direction: row;
+			align-items: center;
+			justify-content: center;
+			flex: 1;
+			position: relative;
+			overflow: visible;
+			height: 100%;
+		}
+
+		&__wrapper {
+			position: relative;
+			width: calc(100% - v-bind("_buttonSize") - v-bind("doulbeTarMar"));
+			border-radius: 99px;
+			overflow: visible;
+		}
+
+		&__track {
+			position: absolute;
+			left: 0;
+			top: 50%;
+			transform: translateY(-50%);
+			z-index: 1;
+			border-radius: 99px;
+			background-color: var(--rice-primary-color);
+
+		}
+
+		&__bar {
+			position: absolute;
+			left: 0;
+			right: 0;
+			top: 50%;
+			transform: translateY(-50%);
+			background-color: var(--rice-slider-inactive-background);
+			border-radius: 99px;
+
+			&--single {
+				position: absolute;
+				left: 0;
+				top: 50%;
+				transform: translateY(-50%);
+				background-color: var(--rice-primary-color);
+				border-radius: 99px;
+			}
+		}
+
+		&__button {
+			position: absolute;
+			z-index: 9;
+			border-radius: 100%;
+			background-color: #fff;
+			box-shadow: 0 1px 10px rgba(0, 0, 0, .05), 0 4px 5px rgba(0, 0, 0, .08), 0 2px 4px -1px rgba(0, 0, 0, .12);
+			border-width: 1px;
+			border-style: solid;
+			overflow: visible;
+			top: 50%;
+			transform: translate3d(-50%, -50%, 0);
+			/* #ifdef WEB */
+			cursor: grab;
+			user-select: none;
+
+			/* #endif */
+			&__text {
+				@include textStyle;
+				position: absolute;
+				left: 50%;
+				top: -22px;
+				transform: translateX(-50%);
+				text-align: center;
+			}
+
+		}
+
+		&__value {
+			@include textStyle;
+			padding-left: 4px;
+
+			&__left {
+				text-align: right;
+				padding-right: 4px;
+			}
+		}
+
+		&--capsule {
+			.rice-slider__track {
+				border-radius: 0px;
+			}
+		}
+
+		/* #endif */
+
+		&--disabled {
+			opacity: 0.6;
+		}
+
+
+
+	}
+</style>

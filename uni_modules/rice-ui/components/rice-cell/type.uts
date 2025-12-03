@@ -1,0 +1,17 @@
+export type CellProps = {
+	title ?: string | number,
+	value ?: string | number,
+	label ?: string | number,
+	size ?: 'large' | 'normal',
+	icon ?: string,
+	url ?: string,
+	border ?: boolean,
+	clickable ?: boolean,
+	arrow ?: boolean,
+	arrowDirection ?: 'up' | 'down' | 'left' | 'right',
+	center ?: boolean,
+	titleStyle ?: UTSJSONObject,
+	valueStyle ?: UTSJSONObject,
+	labelStyle ?: UTSJSONObject,
+	customStyle ?: UTSJSONObject,
+}

@@ -1,0 +1,64 @@
+import { onUnmounted, ref, Ref } from 'vue'
+
+// 定义返回值的类型接口
+type TimeoutControls = {
+	start : () => void
+	clear : () => void
+	isReady : Ref<boolean>
+}
+
+/**
+ * 封装 setTimeout，并在组件卸载时自动清除定时器。
+ * @param callback - 定时器结束后执行的回调函数。
+ * @param delay - 延迟时间（毫秒）。
+ * @returns 包含 start, clear, isReady 的对象。
+ */
+export function useTimeout(callback : () => void, delay : number) : TimeoutControls {
+	// 存储定时器 ID，使用 number 类型，并在初始化时设置为 null
+	const timeoutId : Ref<number | null> = ref(null)
+
+	// 追踪定时器是否已执行完毕
+	const isReady : Ref<boolean> = ref(false)
+
+	/**
+	 * 清除定时器。
+	 */
+	const clear = () => {
+		// 检查 timeoutId.value 是否存在且不为 null
+		if (timeoutId.value !== null) {
+			// 在 UTS 环境中，使用 globalThis.clearTimeout 或直接使用 clearTimeout
+			const id = timeoutId.value
+			clearTimeout(id)
+			timeoutId.value = null
+			isReady.value = true
+		}
+	}
+
+	/**
+	 * 启动定时器。如果定时器已存在，会先清除旧的定时器。
+	 */
+	const start = () => {
+		// 确保在启动前清除旧的定时器
+		clear()
+		isReady.value = false
+
+		// 在 UTS 环境中，使用 globalThis.setTimeout 或直接使用 setTimeout
+		timeoutId.value = setTimeout(() => {
+			callback()
+			isReady.value = true
+			timeoutId.value = null // 执行完毕后清除 ID
+		}, delay)
+	}
+
+
+	// 在组件卸载时自动清除定时器，防止内存泄漏
+	onUnmounted(() => {
+		clear()
+	})
+
+	return {
+		start,
+		clear,
+		isReady
+	}
+}

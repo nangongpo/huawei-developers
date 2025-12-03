@@ -1,0 +1,195 @@
+<script setup lang="uts">
+	import logo from '@/static/logo.png'
+	import { ItemType } from './type.uts'
+	import { scrollData } from './mock.uts'
+	
+	const props= defineProps<{
+		isActive: boolean // 激活页面
+	}>()
+	const emit = defineEmits<{
+		(e: 'disable-outer-swiper'): void
+		(e: 'enable-outer-swiper'): void
+	}>()
+	const pageWidth = inject('windowWidth') as Ref<number>
+	const textWidth = computed(() => pageWidth.value > 0 ? pageWidth.value - 125 : 0)
+
+	// 激活页面时播放
+	const autoplay = computed(() => props.isActive)
+	const refresherTriggered = ref(false)
+	const pullingDistance = ref(0)
+	const resetting = ref(false)
+	// const triggered = ref(false)
+	const state = computed(() => {
+		if (resetting.value) {
+			return 3
+		}
+		if (refresherTriggered.value) {
+			return 2
+		}
+		if (pullingDistance.value > 45) {
+			return 1
+		} else {
+			return 0
+		}
+	})
+	
+	function onRefresherpulling(e : UniRefresherEvent) {
+		pullingDistance.value = e.detail.dy
+		// triggered.value = true
+	}
+	
+	function onRefresherrefresh() {
+		refresherTriggered.value = true
+		setTimeout(() => {
+			refresherTriggered.value = false
+			resetting.value = true
+		}, 1500)
+	}
+	
+	function onRefreshrestore() {
+		pullingDistance.value = 0
+		resetting.value = false
+	}
+	
+	function navigateTo(item: ItemType) {
+		console.log(item)
+		uni.navigateTo({
+			url: `/pages/web-view/web-view?url=${item.url}&title=${item.title}`
+		})
+	}
+</script>
+
+<template>
+	<scroll-view :show-scrollbar="false" :refresher-enabled="true" :refresher-triggered="refresherTriggered"
+      refresher-default-style="none" @refresherpulling="onRefresherpulling" @refresherrefresh="onRefresherrefresh"
+      @refresherrestore="onRefreshrestore" :refresher-max-drag-distance="200" style="flex:1">
+		<!-- 轮播图 -->
+		<swiper
+			class="swiper"
+			indicator-active-color="#fff"
+			:interval="5000"
+			:duration="500"
+			:disable-touch="false"
+			:indicator-dots="false"
+			:circular="true"
+			:autoplay="false">
+			<swiper-item class="uni-padding-wrap">
+				<view class="swiper-item uni-bg-red">
+					<text class="swiper-item-text">A</text>
+				</view>
+			</swiper-item>
+			<swiper-item class="uni-padding-wrap">
+				<view class="swiper-item uni-bg-blue">
+					<text class="swiper-item-text">B</text>
+				</view>
+			</swiper-item>
+			<swiper-item class="uni-padding-wrap">
+				<view class="swiper-item uni-bg-green">
+					<text class="swiper-item-text">C</text>
+				</view>
+			</swiper-item>
+		</swiper>
+		<view class="list-container uni-padding-wrap">
+			<view class="list-title flex-row justify-between items-center">
+				<text class="text-bold">开发者资讯</text>
+				<navigator class="flex-row items-center" url="/pages/developer-news/developer-news">
+					<text class="text-grey">全部</text>
+					<uni-iconfont class="text-grey" name="forward" size="24px"></uni-iconfont>
+				</navigator>
+			</view>
+			<list-view :show-scrollbar="false">
+				<list-item 
+					v-for="item in scrollData"
+					:key="item.id"
+					:type="item.id"
+					class="list-item flex-row"
+					@click="navigateTo(item)">
+					<image v-if="item.icon" class="list-item-icon" :src="item.icon"></image>
+					<image v-else class="list-item-icon" :src="logo"></image>
+					<view class="list-item-right flex-col flex-1">
+						<view class="list-item-title-wrapper">
+							<text ellipsis :lines="2" size="16px">{{ item.title }}</text>
+						</view>
+						<view class="list-item-seperator"></view>
+					</view>
+				</list-item>
+			</list-view>
+		</view>
+
+		<!-- 自定义下拉刷新元素 -->
+		<refresh-box slot="refresher" :state="state"></refresh-box>
+	</scroll-view>
+</template>
+
+<style lang="scss" scoped>
+	$list-icon-size: 65px;
+	$list-content-x-gutter: 15px;
+	$list-content-y-gutter: 20px;
+
+	.swiper {
+		height: 168px;
+	}
+
+	.swiper-item {
+		height: 168px;
+		border-radius: $uni-border-radius-xl;
+	}
+
+	.swiper-item-text {
+		text-align: center;
+		line-height: 168px;
+		color: #ffffff;
+	}
+	
+	.swiper :deep(.uni-swiper-dot) {
+		width: 4px;
+		height: 4px;
+		border-radius: 4px;
+		margin-right: 4px;
+	}
+	
+	.list-container {
+		margin-bottom: 25px;
+	}
+	
+	.list-title {
+		padding-top: 30px;
+		padding-bottom: 20px;
+	}
+	
+	.list-item {
+		position: relative;
+	}
+	
+	.list-item-icon {
+		width: $list-icon-size;
+		height: $list-icon-size;
+		border-radius: $uni-border-radius-xl;
+		margin: $list-content-y-gutter $list-content-x-gutter $list-content-y-gutter 0;
+	}
+	
+	.list-item-right {
+		position: relative;
+	}
+
+	.list-item-title-wrapper {
+		padding-top: $list-content-y-gutter;
+		padding-right: $list-content-x-gutter;
+	}
+	
+	.list-item-title {
+		height: 40px;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		overflow: hidden;
+	}
+	
+	.list-item-seperator {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		border-bottom: 1px solid rgba(0, 0, 0, 0.02);
+	}
+</style>

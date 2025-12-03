@@ -1,0 +1,145 @@
+// useSwiperGesture.uts
+
+import { ref, computed, Ref } from 'vue';
+
+// 假设 uni-app X 提供了类似的 TouchEvent 定义
+type Touch = {
+	clientX : number;
+	clientY : number;
+}
+type TouchEvent = {
+	touches : Array<Touch>;
+}
+
+type SwiperGestureResult = {
+	wrapperOffset : Ref<number>;
+	wrapperTransition : Ref<string>;
+	activeIndex : Ref<number>;
+	handleTouchStart : (e : TouchEvent) => void;
+	handleTouchMove : (e : TouchEvent) => void;
+	handleTouchEnd : () => void;
+	setCurrentIndex : (index : number, animated : boolean) => void;
+}
+
+/**
+ * uni-app X Swiper 手势逻辑 Composable
+ * @param count 页面总数
+ * @param initialIndex 初始页索引
+ * @param screenWidth 当前设备的屏幕宽度 (px)
+ * @param threshold 触发切换的最小滑动距离比例 (0.0 到 1.0)
+ * @param duration 动画时长 (ms)
+ */
+export function useSwiperGesture(
+	count : number,
+	initialIndex : number,
+	screenWidth : number,
+	threshold : number = 0.5,
+	duration : number = 300
+) : SwiperGestureResult {
+
+	const SLIDE_THRESHOLD : number = screenWidth * threshold;
+
+	// 状态
+	const activeIndex = ref<number>(initialIndex);
+	const wrapperOffset = ref<number>(0);
+	const isSliding = ref<boolean>(false);
+
+	// 内部状态
+	let startX : number = 0;
+
+	// 计算属性
+	const wrapperTransition = computed<string>(() => {
+		return isSliding.value ? 'none' : `transform ${duration}ms ease-out`;
+	});
+
+	// ------------------ 逻辑方法 ------------------
+
+	const updateOffset = (animated : boolean) : void => {
+		if (!animated) {
+			isSliding.value = true;
+		}
+
+		const targetOffset : number = -activeIndex.value * screenWidth;
+		wrapperOffset.value = targetOffset;
+
+		if (!animated) {
+			// 模拟延迟恢复，确保样式更新
+			isSliding.value = false;
+		}
+	};
+
+	// 初始化位置
+	updateOffset(false);
+
+	// ------------------ 外部控制 ------------------
+
+	const setCurrentIndex = (index : number, animated : boolean) : void => {
+		if (index >= 0 && index < count) {
+			activeIndex.value = index;
+			updateOffset(animated);
+		}
+	};
+
+	// ------------------ 手势处理 ------------------
+
+	// ... (handleTouchStart, handleTouchMove, handleTouchEnd 逻辑保持不变，但使用 screenWidth)
+
+	const handleTouchStart = (e : TouchEvent) : void => {
+		if (count <= 1) return;
+		startX = e.touches[0].clientX;
+		isSliding.value = true;
+	};
+
+	const handleTouchMove = (e : TouchEvent) : void => {
+		if (!isSliding.value || count <= 1) return;
+
+		const currentX : number = e.touches[0].clientX;
+		let deltaX : number = currentX - startX;
+
+		const baseOffset : number = -activeIndex.value * screenWidth;
+		let newOffset : number = baseOffset + deltaX;
+
+		// 边界限制
+		if (newOffset > 0) {
+			newOffset = 0;
+		} else if (newOffset < -(count - 1) * screenWidth) {
+			newOffset = -(count - 1) * screenWidth;
+		}
+
+		wrapperOffset.value = newOffset;
+	};
+
+	const handleTouchEnd = () : void => {
+		if (!isSliding.value || count <= 1) {
+			isSliding.value = false;
+			return;
+		}
+
+		isSliding.value = false;
+
+		const currentOffset : number = wrapperOffset.value;
+		const baseOffset : number = -activeIndex.value * screenWidth;
+		const totalMoved : number = currentOffset - baseOffset;
+
+		let nextIndex : number = activeIndex.value;
+
+		if (totalMoved < -SLIDE_THRESHOLD) {
+			nextIndex = Math.min(count - 1, activeIndex.value + 1);
+		} else if (totalMoved > SLIDE_THRESHOLD) {
+			nextIndex = Math.max(0, activeIndex.value - 1);
+		}
+
+		activeIndex.value = nextIndex;
+		updateOffset(true);
+	};
+
+	return {
+		wrapperOffset,
+		wrapperTransition,
+		activeIndex,
+		handleTouchStart,
+		handleTouchMove,
+		handleTouchEnd,
+		setCurrentIndex,
+	};
+}

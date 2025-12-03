@@ -1,0 +1,9 @@
+<!-- 跳转消息中心 -->
+<template>
+	<iconfont 
+		name="bell"
+		size="24px"
+		dot 
+		url="/pages/message-center/message-center">
+	</iconfont>
+</template>

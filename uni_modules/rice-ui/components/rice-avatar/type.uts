@@ -1,0 +1,14 @@
+export type AvatarProps = {
+	src ?: string,
+	round ?: boolean,
+	radius ?: string | number,
+	size ?: string | number,
+	mode ?: string,
+	text ?: string | number,
+	icon ?: string,
+	bgColor ?: string,
+	color ?: string,
+	fontSize ?: string | number,
+	defaultUrl ?: string,
+	customStyle ?: UTSJSONObject,
+}
