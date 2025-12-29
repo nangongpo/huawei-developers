@@ -1,0 +1,23 @@
+<script setup lang="uts">
+  const sectionID = ref<number|null>(null)
+
+  onLoad((options) => {
+    console.log(options)
+  })
+</script>
+
+<template>
+  <uni-navbar-lite status-bar back-text="取消" back-class="text-2xl" class="uni-padding-wrap">
+    <template #right>
+      <text class="text-primary">下一步</text>
+    </template>
+  </uni-navbar-lite>
+	<view class="uni-padding-wrap">
+		帖子板块
+    帖子分类
+	</view>
+</template>
+
+<style>
+
+</style>

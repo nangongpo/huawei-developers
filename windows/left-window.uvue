@@ -1,0 +1,63 @@
+<script setup lang="uts">
+  import explore from '@/pages/tab-bar/explore.uvue'
+  import forum from '@/pages/tab-bar/forum.uvue'
+  import manage from '@/pages/tab-bar/manage.uvue'
+  import my from '@/pages/tab-bar/my.uvue'
+
+  import { state, setShowTabBar, setMatchLeftWindow, setActive, setLeftWinActive } from '@/store/index.uts'
+
+
+  let isMobileObserver: MediaQueryObserver | null = null
+  const tabbarList = ['explore', 'forum', 'manage', 'my']
+  const isPC = ref(false)
+  const active = computed(() => state.active)
+  const hasLeftWin = computed(() => !state.noMatchLeftWindow)
+  const leftWinActive = computed(() => state.leftWinActive.split('/')[3])
+  const isDarkMode = computed(() => state.isDarkMode)
+
+  watch(isPC, (matched: boolean) => {
+    setMatchLeftWindow(matched)
+    setShowTabBar(!matched)
+    // is tabbar page
+    if (tabbarList.includes(active.value)) {
+      !matched ? uni.showTabBar() : uni.hideTabBar()
+    }
+  }, { immediate: true })
+
+  onMounted(() => {
+    isMobileObserver = uni.createMediaQueryObserver()
+
+    isMobileObserver?.observe({
+      maxWidth: 768,
+      orientation: 'portrait',
+    }, matched => {
+      isPC.value = !matched
+    })
+
+  })
+
+  onUnmounted(() => {
+    isMobileObserver?.disconnect()
+  })
+</script>
+
+<template>
+  <view class="left-window-style" :class="isDarkMode ? 'theme-dark' : 'theme-light'">
+    <view class="second-menu">
+      <keep-alive>
+        <component :is="active" :hasLeftWin="hasLeftWin" :leftWinActive="leftWinActive"></component>
+      </keep-alive>
+    </view>
+  </view>
+</template>
+
+<style>
+  .left-window-style {
+    min-height: calc(100vh - var(--top-window-height));
+    background-color: var(--background-color,#ffffff);
+  }
+  .second-menu {
+    width: 350px;
+    background-color: #F8F8F8;
+  }
+</style>

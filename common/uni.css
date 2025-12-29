@@ -13,18 +13,21 @@
 	/* #endif */
 }
 
-.icon-hover-bg {
-	background-color: #e7e7e7;
-}
-
-/* 状态栏占位 */
+/* 导航栏样式 */
 .status-bar {
 	height: var(--status-bar-height);
-	width: 100%;
 }
 
-.safe-area-inset-bottom {
-	padding-bottom: var(--uni-safe-area-inset-bottom);
+/* #ifdef WEB */
+uni-app.uni-app--showtabbar uni-page-body::after {
+  height: env(safe-area-inset-bottom);
+  min-height: env(safe-area-inset-bottom);
+}
+/* #endif */
+
+
+.icon-hover-bg {
+	background-color: #e7e7e7;
 }
 
 /* 通用两侧间距 */
@@ -253,46 +256,3 @@ page {
 	color: rgba(0, 0, 0, 0.9);
 }
 /* #endif */
-
-
-/* 动态组件切换动画， 模拟页面切换 */
-.component-container {
-	position: relative;
-	flex: 1;
-	display: flex;
-}
-
-.component-view {
-	position: absolute;
-	top: 0;
-	left: 0;
-	width: 100%;
-	height: 100%;
-	transition: transform 0.5s ease-in-out;
-}
-	
-/* 1. enter-from-class：新组件从右侧 (100%) 开始 */
-.forward-enter-from {
-	transform: translateX(100%);
-}
-/* 2. enter-to-class：新组件最终停在正常位置 (0)，这也是 transition 动画的目标 */
-.forward-enter-to {
-	transform: translateX(0);
-}
-/* 3. leave-active-class：旧组件离开动画过程 (向左侧推出) */
-.forward-leave-active {
-	transform: translateX(-30%);
-}
-/* ------------------- 【后退】动画 (backward: 左侧出栈) ------------------- */
-/* 1. enter-from-class：新组件从左侧 (-100%) 开始 */
-.backward-enter-from {
-	transform: translateX(-100%);
-}
-/* 2. enter-to-class：新组件最终停在正常位置 (0) */
-.backward-enter-to {
-	transform: translateX(0);
-}
-/* 3. leave-active-class：旧组件离开动画过程 (向右侧推出) */
-.backward-leave-active {
-	transform: translateX(30%);
-}

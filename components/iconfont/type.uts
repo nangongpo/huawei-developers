@@ -1,6 +1,7 @@
 // https://doc.dcloud.net.cn/uni-app-x/uts/compiler-known-issues.html#withdefaults-%E4%B8%8E%E5%8F%AF%E9%80%89-props-%E6%8E%A8%E6%96%AD%E5%BC%82%E5%B8%B8
 export type Props = {
 	name: string
+  color?: string
 	size?: string
 	dot?: boolean
 	url?: string
@@ -9,33 +10,3 @@ export type Props = {
 	iconPrefix?: string
 	iconClass?: string
 }
-
-
-	// const props = defineProps({
-	// 	name: {
-	// 		type: String,
-	// 		required: true
-	// 	},
-	// 	size: String,
-	// 	dot: {
-	// 		type: Boolean,
-	// 		default: false
-	// 	},
-	// 	url: String,     // 跳转链接，有值时显示按压效果
-	// 	focusable: {     // 是否可以被聚焦，显示按压效果
-	// 		type: Boolean, 
-	// 		default: false
-	// 	},
-	// 	hoverClass: {    // 按压样式
-	// 		type: String,
-	// 		default: 'icon-hover-circle'
-	// 	},
-	// 	classPrefix: {
-	// 		type: String,
-	// 		default: 'iconfont'
-	// 	},
-	// 	iconPrefix: {
-	// 		type: String,
-	// 		default: 'icon-'
-	// 	},
-	// })

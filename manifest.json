@@ -53,11 +53,15 @@
 				"xxxhdpi": "package/icon192.png"
 			},
 			"splashScreens": {
-				"default": {}
+				"default": {},
+				"icon": {
+					"xhdpi": "package/splash.9.png"
+				}
 			},
-			"minSdkVersion": "21",
+			"minSdkVersion": "26",
 			"schemes": "huawei-developers",
-			"abiFilters": []
+			"abiFilters": [],
+			"targetSdkVersion": "34"
 		}
 	},
 	"app-ios": {

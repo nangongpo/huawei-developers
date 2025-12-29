@@ -1,0 +1,115 @@
+import { MaybeRefOrGetter } from './types.uts'
+import { safeUnrefNumber } from './utils.uts'
+import { tryOnScopeDispose } from './tryOnScopeDispose.uts'
+
+/**
+ * 节流：在指定的时间间隔内，无论触发多少次，目标函数只会执行一次
+ * @param fn - 目标函数。注意：接收的参数统一为 any[] 数组格式。
+ * @param ms - 节流毫秒数，默认 200ms。支持 ref 类型实现动态调整。
+ * @param trailing - 是否在节流周期结束后执行一次最后触发的调用（补偿执行），默认 false。
+ * @param leading - 是否在节流周期开始时立即执行第一次触发，默认 true。
+ * @returns 返回一个包装后的函数，该函数可直接绑定到模板事件中。
+ * @example
+ * ```
+ * // 1. 无参数, 接收 Event
+ * const throttledFn = useThrottleFn((args : any[]) => {
+ * const event = args[0] as UniPointerEvent
+ *  console.log('触发节流', event)
+ * }, 1000)
+ * <text @click="throttledFn">throttledFn</text>
+ * // 2. 传递参数, 接收自定义参数
+ * const throttledFn = useThrottleFn((args : any[]) => {
+ * const str = args[0] as string
+ *  console.log('触发节流', str)
+ * }, 1000)
+ * <text @click="throttledFn('成功回调')">throttledFn</text>
+ * ```
+ */
+export function useThrottleFn(
+  fn : (args : any[]) => void,
+  ms : MaybeRefOrGetter<number> = 200,
+  trailing : boolean = false,
+  leading : boolean = true
+) : (p: any | null) => void {
+  // 实例化内部实现类
+  const instance = new UseThrottleFnImpl(fn, ms, trailing, leading)
+
+  // 返回匿名函数，不带参数默认值，手动处理 undefined/null
+  return (arg : any | null) : void => {
+    if (arg == null) {
+      instance.execute([])
+    } else if (Array.isArray(arg)) {
+      instance.execute(arg as any[])
+    } else {
+      instance.execute([arg])
+    }
+  }
+}
+
+/**
+ * 节流逻辑内部实现类
+ */
+class UseThrottleFnImpl {
+  private _fn : (args : any[]) => void
+  private _ms : MaybeRefOrGetter<number>
+  private _trailing : boolean
+  private _leading : boolean
+
+  private _timer : number | null = null
+  private _lastExecTime : number = 0
+  private _lastArgs : any[] | null = null
+
+  constructor(
+    fn : (args : any[]) => void,
+    ms : MaybeRefOrGetter<number>,
+    trailing : boolean,
+    leading : boolean
+  ) {
+    this._fn = fn
+    this._ms = ms
+    this._trailing = trailing
+    this._leading = leading
+
+    tryOnScopeDispose(() => {
+      this._clear()
+    })
+  }
+
+  private _clear() : void {
+    if (this._timer != null) {
+      clearTimeout(this._timer as number)
+      this._timer = null
+    }
+  }
+
+  execute(args : any[]) : void {
+    const duration = safeUnrefNumber(this._ms)
+    const now = Date.now()
+
+    if (this._lastExecTime == 0 && !this._leading) {
+      this._lastExecTime = now
+    }
+
+    const elapsed = now - this._lastExecTime
+
+    if (elapsed >= duration) {
+      this._clear()
+      this._lastExecTime = now
+      this._fn(args)
+    } else if (this._trailing) {
+      this._lastArgs = args
+
+      if (this._timer == null) {
+        this._timer = setTimeout(() : void => {
+          this._lastExecTime = this._leading ? Date.now() : 0
+          this._clear()
+
+          if (this._lastArgs != null) {
+            this._fn(this._lastArgs as any[])
+            this._lastArgs = null
+          }
+        }, duration - elapsed)
+      }
+    }
+  }
+}

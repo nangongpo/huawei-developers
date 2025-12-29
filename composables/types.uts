@@ -1,0 +1,14 @@
+/**
+ * 补充Vue3.4类型
+ */
+export type MaybeRefOrGetter<T> = T | Ref<T> | (() => T)
+
+/**
+ * Void function
+ */
+export type Fn = () => void
+
+/**
+ * Any function
+ */
+export type AnyFn = (...args : any[]) => void

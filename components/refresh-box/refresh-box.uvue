@@ -2,7 +2,7 @@
 <script setup lang="uts">
 	import { Props } from './type.uts'
 	import loadingGif from '@/static/loading.gif'
-	
+
 	const props = withDefaults(defineProps<Props>(), {
 		state: 0
 	})

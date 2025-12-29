@@ -1,0 +1,133 @@
+import { MaybeRefOrGetter } from './types.uts'
+import { safeUnrefNumber } from './utils.uts'
+import { tryOnScopeDispose } from './tryOnScopeDispose.uts'
+
+/**
+ * useDebounceFn 配置项
+ */
+export type UseDebounceFnOptions = {
+  immediate?: boolean
+  maxWait?: MaybeRefOrGetter<number>
+}
+
+/**
+ * 防抖: 当事件被触发后，等待指定的时间后再执行。如果在这段时间内事件再次被触发，则重新开始计时。
+ * @param fn - 需要防抖执行的目标函数。参数统一以 any[] 格式接收。
+ * @param ms - 延迟时间（毫秒），默认 200ms。支持 Ref 动态调整。
+ * @param options - 配置项，详见 UseDebounceFnOptions。
+ * @returns 返回一个包装后的函数，可直接用于模板绑定。
+ * @example
+ * ```
+ * // 1. 无参数, 接收 Event
+ * const debounceFn = useDebounceFn((args : any[]) => {
+ * const event = args[0] as UniPointerEvent
+ *  console.log('触发节流', event)
+ * }, 1000)
+ * <text @click="debounceFn">debounceFn</text>
+ * // 2. 传递参数, 接收自定义参数
+ * const debounceFn = useDebounceFn((args : any[]) => {
+ * const str = args[0] as string
+ *  console.log('触发节流', str)
+ * }, 1000)
+ * <text @click="debounceFn('成功回调')">debounceFn</text>
+ * ```
+ */
+export function useDebounceFn(
+  fn : (args : any[]) => void,
+  ms : MaybeRefOrGetter<number> | null = null,
+  options : UseDebounceFnOptions | null = null
+) : (p : any | null) => void {
+
+  const _ms = ms ?? 200
+  const _options = options ?? ({} as UseDebounceFnOptions)
+
+  // 实例化内部实现类，维护定时器状态
+  const instance = new UseDebounceFnImpl(fn, _ms, _options)
+
+  // 返回统一的单参数入口
+  return (arg : any | null) : void => {
+    if (arg == null) {
+      instance.execute([])
+    } else if (Array.isArray(arg)) {
+      instance.execute(arg as any[])
+    } else {
+      instance.execute([arg])
+    }
+  }
+}
+
+/**
+ * 防抖逻辑内部实现类
+ */
+class UseDebounceFnImpl {
+  private _fn : (args : any[]) => void
+  private _ms : MaybeRefOrGetter<number>
+  private _options : UseDebounceFnOptions
+
+  private _timer : number | null = null
+  private _maxWaitTimer : number | null = null
+
+  constructor(
+    fn : (args : any[]) => void,
+    ms : MaybeRefOrGetter<number>,
+    options : UseDebounceFnOptions
+  ) {
+    this._fn = fn
+    this._ms = ms
+    this._options = options
+
+    tryOnScopeDispose(() => {
+      this.clear()
+    })
+  }
+
+  /**
+   * 清除所有定时器
+   */
+  clear() : void {
+    if (this._timer != null) {
+      clearTimeout(this._timer as number)
+      this._timer = null
+    }
+    if (this._maxWaitTimer != null) {
+      clearTimeout(this._maxWaitTimer as number)
+      this._maxWaitTimer = null
+    }
+  }
+
+  /**
+   * 执行防抖逻辑
+   */
+  execute(args : any[]) : void {
+    const delay = safeUnrefNumber(this._ms)
+    const maxWait = this._options.maxWait != null ? safeUnrefNumber(this._options.maxWait) : 0
+    const immediate = this._options.immediate ?? false
+
+    // 立即执行判断：如果是 immediate 模式且当前没有活跃计时器
+    const isImmediate = immediate && this._timer == null
+
+    this.clear()
+
+    if (isImmediate) {
+      this._fn(args)
+    }
+
+    // 设置最大等待逻辑
+    if (maxWait > 0 && this._maxWaitTimer == null) {
+      this._maxWaitTimer = setTimeout(() => {
+        if (this._timer != null) {
+          this.clear()
+          this._fn(args)
+        }
+      }, maxWait)
+    }
+
+    // 设置标准防抖定时器
+    this._timer = setTimeout(() => {
+      this.clear()
+      if (!isImmediate) {
+        this._fn(args)
+      }
+    }, delay)
+  }
+}

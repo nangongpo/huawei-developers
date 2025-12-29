@@ -1,0 +1,254 @@
+import { PostSectionItem, PostCategoryItem, PostTagsItem, PostGroupItem, PostStatusItem, PostPermissionItem, TrendingPostItem, PostListItem } from "./forum.type"
+import testPng from '@/static/forum/test.png'
+
+// 帖子板块
+export const postSectionData : PostSectionItem[] = [
+  { id: 1, name: '推荐', display: true },
+  { id: 2, name: 'HarmonyOS 5及以上', display: true },
+  { id: 3, name: 'HarmonyOS SDK', display: true },
+  { id: 4, name: '激励计划', display: true },
+  { id: 5, name: 'HarmonyOS 3/4', display: true },
+  { id: 6, name: '设备开发', display: true },
+  { id: 7, name: 'HarmonyOS Connect', display: true },
+  { id: 8, name: '综合板块', display: false },
+  { id: 9, name: 'HMS Core', display: false },
+  { id: 10, name: 'AppGallery Connnect', display: false },
+  { id: 11, name: '开发者学堂', display: false },
+  { id: 12, name: '运动健康', display: false },
+  { id: 13, name: 'HarmonyOS行业解决方案', display: false },
+  { id: 14, name: 'Codelabs', display: false },
+  { id: 15, name: '云开发|Serverless', display: false },
+  { id: 16, name: '华为云专区', display: false },
+  { id: 17, name: '主题', display: false },
+  { id: 18, name: '设备安全能力', display: false },
+  { id: 19, name: 'AR/VR', display: false },
+  { id: 20, name: 'HUAWEIResearch', display: false },
+  { id: 21, name: '快服务专区', display: false },
+  { id: 22, name: '极客创新竞赛', display: false },
+  { id: 23, name: '软件能力开放', display: false },
+  { id: 24, name: '第三方预装专区', display: false },
+  { id: 25, name: 'Gaming Hub', display: false },
+  { id: 26, name: '华为应用市场专区', display: false },
+]
+
+// 帖子分类
+export const postCategoryData : PostCategoryItem[] = [
+  { id: 1, name: '技术问题', display: true },
+  { id: 2, name: '最新动态', display: true },
+  { id: 3, name: '方案分享', display: true },
+  { id: 4, name: '其他', display: true },
+]
+
+// 帖子标签
+export const postTagsData : PostTagsItem[] = [
+  { id: 1, name: '3D Engine', display: true },
+  { id: 2, name: '3D建模服务', display: true },
+  { id: 3, name: '5G Modem kit', display: true },
+  { id: 4, name: 'A/B测试', display: true },
+  { id: 5, name: 'Ability(程序框架)', display: true },
+  { id: 6, name: 'Ability Kit', display: true },
+  { id: 7, name: 'Ability框架', display: true },
+  { id: 8, name: 'Accessibility Kit', display: true },
+  { id: 9, name: 'Account Kit', display: true },
+  { id: 10, name: 'Account Kit(华为账号服务)', display: true },
+  { id: 11, name: 'Ads Kit', display: true },
+  { id: 12, name: 'Ads Kit(广告服务)', display: true },
+  { id: 13, name: 'AGC App Linking', display: true },
+  { id: 14, name: 'AI', display: true },
+  { id: 15, name: 'AI开发平台ModelArts', display: true },
+  { id: 16, name: 'AI框架', display: true },
+  { id: 17, name: 'Android开发', display: true },
+  { id: 18, name: 'API网关', display: true },
+  { id: 19, name: 'App Linking', display: true },
+  { id: 20, name: 'AppGallery Connect', display: true },
+  { id: 21, name: 'App开发', display: true },
+  { id: 22, name: 'AR Engine', display: true },
+  { id: 23, name: 'AR/VR', display: true },
+  { id: 24, name: 'ArkGraphics 2D', display: true },
+  { id: 25, name: 'ArkGraphics 3D', display: true },
+  { id: 26, name: 'ArkTS', display: true },
+  { id: 27, name: 'ArkUI(方舟UI框架)', display: true },
+  { id: 28, name: 'ArkWeb', display: true },
+  { id: 29, name: 'Asset Store Kit', display: true },
+  { id: 30, name: 'Audio Kit', display: true },
+  { id: 31, name: 'AVCodec Kit', display: true },
+  { id: 32, name: 'AVSession Kit', display: true }
+]
+
+// 帖子分组
+export const postGroupData: PostGroupItem[] = [
+  { id: 1, name: '精华', display: true },
+  { id: 2, name: '热门', display: true },
+  { id: 3, name: '推荐', display: true },
+]
+
+// 帖子状态
+export const postStatusData: PostStatusItem[] = [
+  { id: 1, name: '已发布', display: true },
+  { id: 2, name: '已解决', display: true },
+  { id: 3, name: '已下架', display: true },
+]
+
+// 帖子权限
+export const postPermissionData: PostPermissionItem[] = [
+  { id: 1, name: '匿名发布', display: true },
+  { id: 2, name: '回帖仅作可见', display: true }
+]
+
+// 搜索历史
+export const searchHistoryData : string[] = ['HarmonyOS', '实名认证']
+
+// 热门搜索
+export const trendingSearchesData : string[] = ['HarmonyOS', '实名认证', 'HMS Core', 'Serverless', '生态市场', '应用上架', '仓颉', 'HUAWEIHiAI', '表盘', '推送', '主题', '公测']
+
+// 热门帖子
+export const trendingPostsData : TrendingPostItem[] = [
+  { id: 1, name: '开发者们打算怎么花激励金？', url: 'https://www.baidu.com' },
+  { id: 2, name: '📜【官方】开发者积分全攻略：获取、兑换与专属福利一览', url: 'https://www.baidu.com' },
+  { id: 3, name: '开发者联盟12月积分兑换活动即将开启，速来锁定心仪好礼！', url: 'https://www.baidu.com' },
+  { id: 4, name: '6.0.0.115版本', url: 'https://www.baidu.com' },
+  { id: 5, name: '期待115的5A', url: 'https://www.baidu.com' },
+  { id: 6, name: '怎么升级112版本', url: 'https://www.baidu.com' },
+  { id: 7, name: '鸿蒙5.0和6.0桌面的图标和文件夹能不能恢复成一排可以放五个？', url: 'https://www.baidu.com' },
+  { id: 8, name: '什么时候升级', url: 'https://www.baidu.com' }
+]
+
+// 所有帖子
+export const postsAllData : PostListItem[] = [
+  {
+    section_id: 1,  // 帖子板块
+    category_id: 1, // 帖子分类
+    id: 1,
+    name: '提问小技巧: 让解答更高效',
+    content: 'HarmonyOS开发者们: 作为HarmonyOS官方技术社区，我们非常欢迎您在社区提问题，解决您开发过程中遇到的问题。为了他人更好的理解您的问题，更快给您提供解决方案，请参考以下规范进行提问：',
+    image: '',
+    tag: 'HarmonyOS 5',
+    author: 'HarmonyOS 技术支持',
+    visits: 596,
+    likes: 2,
+    comments: 13,
+    bounty: 0,
+    status: 1,
+    pinned: true,
+    group:  [2],
+  },
+  {
+    section_id: 1,
+    category_id: 1,
+    id: 2,
+    name: '【今日上新】易版权电子版权服务鸿蒙版免费办理指导-针对鸿蒙应用开发者激励计划2025',
+    content: '华为和易版权联合推出“电子版权服务（鸿蒙版）”活动，如您已报名鸿蒙应用开发者激励计划2025，且在2025年7月23日至2025年12月31日期间，完成鸿蒙应用开发并在华为应用市场正式上架，但尚未办理“软件著作权（软著）”。',
+    image: testPng,
+    tag: 'HarmonyOS6,HarmonyOS5',
+    author: '社区运营',
+    visits: 596,
+    likes: 2,
+    comments: 13,
+    bounty: 0,
+    status: 1,
+    pinned: true,
+    group:  [2],
+  },
+  {
+    section_id: 1,
+    category_id: 1,
+    id: 3,
+    name: '鸿蒙开发之旅——社区问答优质内容征集',
+    content: '鸿蒙生态持续发展，HarmonyOS开发者数量稳步增长，鸿蒙社区致力于为开发者搭建交流技术、分享经验、共同成长的平台。',
+    image: '',
+    tag: 'HarmonyOS6,HarmonyOS5',
+    author: 'HarmonyOS 技术支持',
+    visits: 596,
+    likes: 2,
+    comments: 13,
+    bounty: 0,
+    status: 1,
+    pinned: true,
+    group:  [],
+  },
+  {
+    section_id: 1,
+    category_id: 1,
+    id: 4,
+    name: 'Profile申请',
+    content: 'ACL权限申请后，提示可以申请5天的临时profile，但是在申请页面，选择不到相应的ACL权限',
+    image: '',
+    tag: 'AppGallery Connect',
+    author: 'HarmonyOS 技术支持',
+    visits: 596,
+    likes: 2,
+    comments: 13,
+    bounty: 0,
+    status: 1,
+    pinned: true,
+    group:  [],
+  },
+  {
+    section_id: 1,
+    category_id: 1,
+    id: 5,
+    name: '“答开发者问”之HarmonyOS技术问题解析 第18期',
+    content: '本期问题如下：1、如何方便的获取设备的UDID？2、无内购无广告且不联网的游戏上架时是否需要版号？3、怎么实现类似于练字的功能？',
+    image: '',
+    tag: 'HarmonyOS6,HarmonyOS5',
+    author: 'HarmonyOS 技术支持',
+    visits: 596,
+    likes: 2,
+    comments: 13,
+    bounty: 0,
+    status: 1,
+    pinned: true,
+    group:  [],
+  },
+  {
+    section_id: 2,
+    category_id: 1,
+    id: 6,
+    name: '【新年礼遇】画龙迎春，”码“上”鸿“福到，有机会赢得HUAWEI WATCH GT Runner等精美好礼！',
+    content: '点击下载DevEco Studio（不限版本）作品提交已截止，请大家移步投票贴（戳这里），参与投票！',
+    image: '',
+    tag: 'HarmonyOS',
+    author: '耶耶耶耶耶',
+    visits: 16000,
+    likes: 29,
+    comments: 69,
+    bounty: 0,
+    status: 1,
+    pinned: false,
+    group:  [1],
+  },
+  {
+    section_id: 2,
+    category_id: 1,
+    id: 7,
+    name: '“答开发者问”之HarmonyOS技术问题解析 第18期',
+    content: '本期问题如下：1、如何方便的获取设备的UDID？2、无内购无广告且不联网的游戏上架时是否需要版号？3、怎么实现类似于练字的功能？',
+    image: '',
+    tag: 'HarmonyOS6,HarmonyOS5',
+    author: 'HarmonyOS 技术支持',
+    visits: 596,
+    likes: 2,
+    comments: 13,
+    bounty: 0,
+    status: 1,
+    pinned: false,
+    group:  [1, 2, 3],
+  },
+  {
+    section_id: 2,
+    category_id: 1,
+    id: 8,
+    name: 'Flutter for HarmonyOS报错',
+    content: 'Flutter版本: 3.32.4-ohos-0.0.1\nDevEco版本: 6.0.1\nAPI: 20',
+    image: '',
+    tag: 'HarmonyOS6',
+    author: '134******55',
+    visits: 515,
+    likes: 0,
+    comments: 0,
+    bounty: 50,
+    status: 1,
+    pinned: false,
+    group:  [],
+  }
+]

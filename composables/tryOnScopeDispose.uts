@@ -1,0 +1,26 @@
+import { Fn } from './types.uts'
+/**
+ * 在当前作用域或组件销毁时执行回调
+ * @param fn 回调函数
+ * @returns 是否成功注册
+ */
+export function tryOnScopeDispose(fn: Fn): boolean {
+  // 1. 检查是否存在活跃的 EffectScope
+  const scope = getCurrentScope()
+  if (scope != null) {
+    onScopeDispose(fn)
+    return true
+  }
+
+  // 2. 如果不在 Scope 中，检查是否在组件生命周期中
+  const instance = getCurrentInstance()
+  if (instance != null) {
+    onUnmounted(() => {
+      fn()
+    })
+    return true
+  }
+
+  // 3. 既不在 Scope 也不在组件中（例如在纯 ts/uts 文件中直接调用），注册失败
+  return false
+}

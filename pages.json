@@ -1,52 +1,66 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://doc.dcloud.net.cn/uni-app-x/collocation/pagesjson.html
+	"leftWindow": {
+		"path": "windows/left-window.uvue",
+		"style": {
+			"width": "0"
+		}
+	},
+	"topWindow": {
+		"path": "windows/top-window.uvue",
+		"style": {
+			"height": "60px"
+		}
+	},
+  "pages": [ //pages数组中第一项表示应用启动页，参考：https://doc.dcloud.net.cn/uni-app-x/collocation/pagesjson.html
 		{
+			"path": "pages/splash/splash",
+			"style": {
+				"navigationBarTitleText": "开发者联盟"
+			}
+		},
+    {
 			"path": "pages/tab-bar/explore",
 			"style": {
-				"navigationBarTitleText": "探索",
-				"backgroundColorContent": "@tabBarPagebackgroundColorContent"
+				"navigationBarTitleText": "探索"
 			}
 		},
 		{
 			"path": "pages/tab-bar/forum",
 			"style": {
-				"navigationBarTitleText": "论坛",
-				"backgroundColorContent": "@tabBarPagebackgroundColorContent"
-			}
+				"navigationBarTitleText": "论坛"
+      }
 		},
 		{
 			"path": "pages/forum/search/search",
 			"style": {
-				"navigationBarTitleText": "搜索",
-				"backgroundColorContent": "@tabBarPagebackgroundColorContent"
+				"navigationBarTitleText": "搜索"
 			}
 		},
+    {
+    	"path": "pages/forum/content/content"
+    },
 		{
 			"path": "pages/tab-bar/manage",
 			"style": {
-				"navigationBarTitleText": "管理台",
-				"backgroundColorContent": "@tabBarPagebackgroundColorContent"
+				"navigationBarTitleText": "管理台"
 			}
 		},
 		{
 			"path": "pages/tab-bar/my",
 			"style": {
-				"navigationBarTitleText": "我的",
-				"backgroundColorContent": "@tabBarPagebackgroundColorContent"
+				"navigationBarTitleText": "我的"
 			}
 		},
 		{
 			"path": "pages/message-center/message-center",
 			"style": {
-				"navigationBarTitleText": "消息中心",
-				"backgroundColorContent": "@tabBarPagebackgroundColorContent"
+				"navigationBarTitleText": "消息中心"
 			}
 		},
 		{
 			"path": "pages/developer-news/developer-news",
 			"style": {
-				"navigationBarTitleText": "开发者资讯",
-				"backgroundColorContent": "@tabBarPagebackgroundColorContent"
+				"navigationBarTitleText": "开发者资讯"
 			}
 		},
 		{
@@ -58,15 +72,19 @@
 		{
 			"path": "pages/web-view/web-view",
 			"style": {
-				"navigationBarTitleText": "",
-				"backgroundColorContent": "@tabBarPagebackgroundColorContent"
+				"navigationBarTitleText": ""
 			}
 		},
 		{
 			"path": "pages/report/report",
 			"style": {
-				"navigationBarTitleText": "举报",
-				"navigationStyle": "custom"
+				"navigationBarTitleText": "举报"
+			}
+		},
+		{
+			"path": "pages/forum/add/add",
+			"style": {
+				"navigationBarTitleText": ""
 			}
 		}
 	],
@@ -103,13 +121,11 @@
 	},
 	"globalStyle": {
 		"pageOrientation": "portrait",
-		"navigationBarTitleText": "",
-		"navigationBarTextStyle": "@navigationBarTextStyle",
-		"navigationBarBackgroundColor": "@navigationBarBackgroundColor",
+		"navigationBarTitleText": "开发者联盟",
+    "navigationStyle": "custom",
 		"backgroundColorContent": "@backgroundColorContent",
 		"backgroundColor": "@backgroundColor",
-		"backgroundTextStyle": "@backgroundTextStyle",
-		"navigationStyle": "custom"
+		"backgroundTextStyle": "@backgroundTextStyle"
 	},
 	"uniIdRouter": {}
 }

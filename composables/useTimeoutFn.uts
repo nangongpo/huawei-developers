@@ -1,0 +1,141 @@
+import { ComputedRef, shallowRef } from 'vue'
+import { MaybeRefOrGetter } from './types.uts'
+import { safeUnrefNumber } from './utils.uts'
+import { tryOnScopeDispose } from './tryOnScopeDispose.uts'
+
+/**
+ * 参数选项
+ */
+export type UseTimeoutFnOptions = {
+  immediate?: boolean
+  immediateCallback?: boolean
+}
+
+/**
+ * 返回值接口
+ */
+export interface UseTimeoutFnReturn {
+  isPending : ComputedRef<boolean>
+  stop() : void
+  start() : void
+  start(...args : any[]) : void
+}
+
+/**
+ * 封装 setTimeout 的控制逻辑，支持响应式间隔时间与参数透传。
+ * ### 特性
+ * - 自动销毁：在组件卸载或作用域销毁时自动清理定时器。
+ * - 响应式间隔：支持传入 Ref 或 Getter 作为 interval。
+ *
+ * @example
+ * ```
+ * // 1. 基本用法
+ * const timeoutTimer = useTimeoutFn((args : any[]) => {
+ * console.log('执行成功')
+ * }, 3000)
+ * // 2. 传参用法
+ * const timeoutTimer = useTimeoutFn((args : any[]) => {
+ * const [name, age] = args
+ * console.log(`姓名：${name}, 年龄：${age}`)
+ * }, 2000, { immediate: false })
+ * // 启动并传参
+ * timeoutTimer.start('张三', 25)
+ * // 3. 响应式间隔
+ * const delay = ref(1000)
+ * useTimeoutFn((args : any[]) => {
+ *   console.log('延迟执行')
+ * }, delay)
+ * ```
+ * @param cb 回调函数，接收一个参数数组 args
+ * @param interval 延迟时间 (ms)，支持 number | Ref<number> | () => number
+ * @param options 配置项
+ * @returns 包含状态控制的 UseTimeoutFnReturn 对象
+ */
+export function useTimeoutFn(
+  cb : (args : any[]) => void,
+  interval : MaybeRefOrGetter<number> | null = null,
+  options : UseTimeoutFnOptions | null = null
+) : UseTimeoutFnReturn {
+  return new UseTimeoutFnReturnImpl(cb, interval, options)
+}
+
+class UseTimeoutFnReturnImpl implements UseTimeoutFnReturn {
+  private _cb : (args : any[]) => void
+  private _interval : MaybeRefOrGetter<number> | null
+  private _immediateCallback : boolean
+
+  private _isPending = shallowRef(false)
+  private _timer : number | null = null
+
+  isPending : ComputedRef<boolean> = computed(() : boolean => this._isPending.value)
+
+  constructor(
+    cb : (args : any[]) => void,
+    interval : any | null,
+    options : UseTimeoutFnOptions | null
+  ) {
+    this._cb = cb
+    this._interval = interval
+
+    const optionsSafe = options ?? ({} as UseTimeoutFnOptions)
+    const immediate = optionsSafe.immediate ?? true
+    this._immediateCallback = optionsSafe.immediateCallback ?? false
+
+    if (immediate) {
+      this.start()
+    }
+
+    tryOnScopeDispose(() => {
+      this.stop()
+    })
+  }
+
+  private _clearTimer() {
+    if (this._timer != null) {
+      clearTimeout(this._timer as number)
+      this._timer = null
+    }
+  }
+
+  stop() {
+    this._isPending.value = false
+    this._clearTimer()
+  }
+
+  // #ifdef APP
+  override start() {
+    this._coreStart([] as any[])
+  }
+
+  override start(...args : any[]) {
+    this._coreStart(args)
+  }
+  // #endif
+
+  // #ifndef APP
+  start(...args : any[]) {
+    this._coreStart(args)
+  }
+  // #endif
+
+  /**
+   * 核心计时逻辑 (私有)
+   * 确保无论通过哪种重载进入，逻辑都保持一致
+   */
+  private _coreStart(args : any[]) {
+    if (this._immediateCallback) {
+      this._cb(args)
+    }
+
+    this._clearTimer()
+    this._isPending.value = true
+
+    const delay = safeUnrefNumber(this._interval)
+
+    this._timer = setTimeout(() => {
+      this._isPending.value = false
+      this._timer = null
+      this._cb(args)
+    }, delay)
+  }
+}

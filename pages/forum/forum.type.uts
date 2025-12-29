@@ -1,0 +1,128 @@
+// 帖子板块
+export type PostSectionItem = {
+  id : number
+  name : string
+  display : boolean
+}
+
+// 帖子分类
+export type PostCategoryItem = {
+  id : number
+  name : string
+  display : boolean
+}
+
+// 帖子标签
+export type PostTagsItem = {
+  id : number
+  name : string
+  display : boolean
+}
+
+// 帖子分组
+export type PostGroupItem = {
+  id : number
+  name : string
+  display : boolean
+}
+
+export type PostGroup = 1 | 2 | 3
+
+// 帖子状态
+export type PostStatusItem = {
+  id : number
+  name : string
+  display : boolean
+}
+
+export type PostStatus = 1 | 2 | 3
+
+// 帖子权限
+export type PostPermissionItem = {
+  id : number
+  name : string
+  display : boolean
+}
+
+export type PostPermission = 1 | 2
+
+export type PostTagItem = {
+  name : string,
+  color : string
+}
+
+// 帖子列表项
+export type PostListItem = {
+  section_id : number // 帖子板块
+  category_id ?: number // 帖子分类
+  tag_id ?: number // 帖子标签
+  id : number
+  name : string
+  content : string
+  image ?: string
+  tag : string
+  author : string
+  visits : number
+  likes : number
+  comments : number
+  bounty : number,
+  pinned : boolean
+  status : PostStatus, // 已发布、已解决、已下架
+  group : PostGroup[], // 精华、热门、推荐
+  permissions ?: PostPermission[], // 匿名发布、回帖仅作者可见
+  url ?: string,
+  tagItems ?: PostTagItem[], // 置顶、爆、精华、荐、悬赏 64、已解决
+  tagItemsName ?: string // 计算 置顶、爆、悬赏、精华、已解决 帖子状态标签占位符
+}
+
+// 热门帖子
+export type TrendingPostItem = {
+  id : number
+  name : string
+  url ?: string
+}
+
+// 帖子标签整合
+export function getTagItems(postItem : PostListItem) : PostTagItem[] {
+  const tagItems : PostTagItem[] = []
+  const { pinned, group, status, bounty } = postItem
+
+  if (pinned) {
+    tagItems.push({ name: '置顶', color: '#f8555b' })
+  }
+
+  if (Array.isArray(group)) {
+    if (group.includes(2)) {
+      tagItems.push({ name: '爆', color: '#fc7600' })
+    }
+    if (group.includes(1)) {
+      tagItems.push({ name: '精华', color: '#06bfca' })
+    }
+    if (group.includes(3)) {
+      tagItems.push({ name: '荐', color: '#ffab3b' })
+    }
+  }
+  // 已发布，显示悬赏
+  if (status == 1 && bounty > 0) {
+    tagItems.push({ name: '悬赏 ' + bounty, color: '#ffab3b' })
+  }
+  if (status == 3) {
+    tagItems.push({ name: '已解决' + bounty, color: '#82c03b' })
+  }
+
+  return tagItems
+}
+
+// 帖子标签空格占位
+export function getTagItemsName(postTagItems : PostTagItem[]) : string {
+  return postTagItems
+    .map(v => {
+      // 遇到中文字符（宽字符）计为 2，英文字符计为 1
+      let weight = 0
+      for (let i = 0; i < v.name.length; i++) {
+        weight += (v.name.charCodeAt(i) as number) > 255 ? 2 : 1
+      }
+      return '\u00A0'.repeat(weight * 2) + '\u00A0\u00A0'
+    })
+    .join('')
+}

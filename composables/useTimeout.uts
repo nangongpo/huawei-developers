@@ -1,64 +1,111 @@
-import { onUnmounted, ref, Ref } from 'vue'
+import { ComputedRef } from 'vue'
+import { MaybeRefOrGetter } from './types.uts'
+import { UseTimeoutFnReturn, useTimeoutFn } from './useTimeoutFn.uts'
 
-// 定义返回值的类型接口
-type TimeoutControls = {
-	start : () => void
-	clear : () => void
-	isReady : Ref<boolean>
+/**
+ * useTimeout 配置项
+ */
+export type UseTimeoutOptions = {
+  /**
+   * 超时后的回调函数
+   */
+  callback?: (args : any[]) => void
+
+  /**
+   * 继承自 UseTimeoutFnOptions
+   */
+  immediate?: boolean
+  immediateCallback?: boolean
 }
 
 /**
- * 封装 setTimeout，并在组件卸载时自动清除定时器。
- * @param callback - 定时器结束后执行的回调函数。
- * @param delay - 延迟时间（毫秒）。
- * @returns 包含 start, clear, isReady 的对象。
+ * useTimeout 返回值接口
+ * 为了兼容 controls 模式，我们统一返回一个包含 ready 的对象
  */
-export function useTimeout(callback : () => void, delay : number) : TimeoutControls {
-	// 存储定时器 ID，使用 number 类型，并在初始化时设置为 null
-	const timeoutId : Ref<number | null> = ref(null)
+export interface UseTimeoutReturn extends UseTimeoutFnReturn {
+  /** * 是否已到达超时时间 */
+  ready : ComputedRef<boolean>
+}
 
-	// 追踪定时器是否已执行完毕
-	const isReady : Ref<boolean> = ref(false)
+/**
+ * 在给定时间后更新状态。
+ * ### 注意事项
+ * - **不支持解构**：必须通过 `const timeout = useTimeout()` 后使用 `timeout.ready` 访问。
+ * - **返回值说明**：在 UTS 中为了类型稳定，统一返回包含 controls 的对象，不再根据布尔值切换返回类型。
+ *
+ * @example
+ * ```
+ * // 1. 基本用法
+ * const timeout = useTimeout(2000)
+ * // <view v-if="timeout.ready.value">时间到</view>
+ * // 2. 带回调和控制
+ * const timeout = useTimeout(1000, {
+ * callback: (args : any[]) => { console.log('Timeout!') }
+ * })
+ * timeout.stop()
+ * ```
+ * @param interval 延迟时间 (ms)
+ * @param options 配置项
+ */
+export function useTimeout(
+  interval : MaybeRefOrGetter<number> | null = 1000,
+  options : UseTimeoutOptions | null = null
+) : UseTimeoutReturn {
+  const optionsSafe = options ?? ({} as UseTimeoutOptions)
 
-	/**
-	 * 清除定时器。
-	 */
-	const clear = () => {
-		// 检查 timeoutId.value 是否存在且不为 null
-		if (timeoutId.value !== null) {
-			// 在 UTS 环境中，使用 globalThis.clearTimeout 或直接使用 clearTimeout
-			const id = timeoutId.value
-			clearTimeout(id)
-			timeoutId.value = null
-			isReady.value = true
-		}
-	}
+  const cb = optionsSafe.callback ?? ((_args : any[]) => {})
 
-	/**
-	 * 启动定时器。如果定时器已存在，会先清除旧的定时器。
-	 */
-	const start = () => {
-		// 确保在启动前清除旧的定时器
-		clear()
-		isReady.value = false
+  const controls = useTimeoutFn(
+    cb,
+    interval,
+    optionsSafe
+  )
 
-		// 在 UTS 环境中，使用 globalThis.setTimeout 或直接使用 setTimeout
-		timeoutId.value = setTimeout(() => {
-			callback()
-			isReady.value = true
-			timeoutId.value = null // 执行完毕后清除 ID
-		}, delay)
-	}
+  return new UseTimeoutReturnImpl(controls)
+}
 
+/**
+ * UseTimeout 实现类
+ * 通过组合 (Composition) 的方式包装 useTimeoutFn 的实例
+ */
+class UseTimeoutReturnImpl implements UseTimeoutReturn {
+  private _controls : UseTimeoutFnReturn
 
-	// 在组件卸载时自动清除定时器，防止内存泄漏
-	onUnmounted(() => {
-		clear()
-	})
+  /**
+   * 是否已就绪（即计时结束）
+   */
+  ready : ComputedRef<boolean>
 
-	return {
-		start,
-		clear,
-		isReady
-	}
+  constructor(controls : UseTimeoutFnReturn) {
+    this._controls = controls
+    this.ready = computed(() : boolean => !this._controls.isPending.value)
+  }
+
+  // 代理 isPending 状态
+  get isPending() : ComputedRef<boolean> {
+    return this._controls.isPending
+  }
+
+  /**
+   * 停止计时
+   */
+  stop() {
+    this._controls.stop()
+  }
+
+  // #ifdef APP
+  override start() {
+    this._controls.start()
+  }
+
+  override start(...args : any[]) {
+    this._controls.start(args)
+  }
+  // #endif
+
+  // #ifndef APP
+  start(...args : any[]) {
+    this._controls.start(args)
+  }
+  // #endif
 }

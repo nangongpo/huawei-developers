@@ -1,0 +1,71 @@
+/**
+ * 数字解包
+ * @description
+ * 该函数用于将 MaybeRefOrGetter<number> 安全地转换为基础 number 类型。
+ * 针对 Android 端做了特殊处理，避开 Kotlin 将 Integer 强转为 Ref 的崩溃问题。
+ * @param val 待解包的参数 (number | Ref<number> | Getter)
+ * @returns number 返回解包后的数字。如果输入为 null、undefined 或无法解析的类型，则默认返回 0。
+ */
+export function safeUnrefNumber(val : any | null) : number {
+  if (val == null) return 0
+
+  if (typeof val === 'number') {
+    return val as number
+  }
+
+  // #ifdef APP-ANDROID
+  // Android 端：由于 Kotlin 泛型擦除，手动按顺序处理
+  if (typeof val === 'function') {
+    return (val as () => number)()
+  }
+  if (isRef(val)) {
+    return (val as Ref<number>).value
+  }
+  // #endif
+
+  // #ifndef APP-ANDROID
+  return toValue(val as number)
+  // #endif
+
+  return 0
+}
+
+/**
+ * 创建一个在指定时间后完成或拒绝的 Promise。
+ * @param ms 等待的毫秒数
+ * @param throwOnTimeout 如果为 true，则在超时后抛出异常（Reject）；否则正常完成（Resolve）
+ * @param reason 当抛出异常时的错误信息
+ * @returns Promise<void>
+ * @example
+ * ```
+ * // 1. 用作等待 (Sleep)
+ * promiseTimeout(1000).then(() => {
+ * console.log("1秒后执行");
+ * });
+ * // 2. 用作超时检查
+ * try {
+ * await Promise.race([
+ * fetchData(),
+ * promiseTimeout(5000, true, '请求超时了')
+ * ]);
+ * } catch (e) {
+ * console.error(e); // 如果 fetchData 超过5秒未完成，将输出 "请求超时了"
+ * }
+ * ```
+ */
+export function promiseTimeout(
+  ms : number,
+  throwOnTimeout : boolean = false,
+  reason : string = 'Timeout',
+) : Promise<void> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (throwOnTimeout) {
+        // 在 uts 中，建议 reject 一个具体的错误原因或 Error 对象
+        reject(reason)
+      } else {
+        resolve()
+      }
+    }, ms)
+  })
+}

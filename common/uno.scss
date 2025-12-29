@@ -17,6 +17,32 @@
 	margin: $uni-spacing-col-lg 0;
 }
 
+.tag-sm {
+  font-size: $uni-font-size-sm;
+  color: $uni-text-color-grey;
+  background-color: $uni-bg-color-grey;
+  padding: 0 6px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+
+.tag-base {
+  font-size: $uni-font-size-sm;
+  color: $uni-text-color-grey;
+  background-color: $uni-bg-color-grey;
+  padding: 2px 4px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+
+.visible {
+  visibility: visible;
+}
+
+.invisible {
+  visibility: hidden;
+}
+
 .text-primary {
 	color: $uni-color-primary;
 }
@@ -31,6 +57,10 @@
 
 .text-error {
 	color: $uni-color-error;
+}
+
+.text-white {
+  color: #ffffff;
 }
 
 .text-grey {
@@ -56,6 +86,18 @@
 .text-ellipsis {
 	white-space: nowrap;
 	text-overflow: ellipsis;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
 }
 
 .text-sm {
@@ -104,6 +146,14 @@
 
 .bg-grey {
 	background: #F0F0F0;
+}
+
+.relative {
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
 }
 
 .flex {
@@ -187,6 +237,10 @@
 	flex-shrink: 1;
 }
 
+.mb-4px {
+  margin-bottom: 4px;
+}
+
 .mr-6px {
 	margin-right: 6px;
 }
@@ -196,8 +250,13 @@
 	margin-bottom: 12px;
 }
 
-.mt-12px {
-	margin-top: 12px;
+.my-20px {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.ml-12px {
+	margin-left: 12px;
 }
 
 .mr-12px {
@@ -209,5 +268,25 @@
 }
 
 .mt-12px {
-	margin-left: 12px;
+	margin-top: 12px;
+}
+
+.mt-20px {
+	margin-top: 20px;
+}
+
+.mt-20px {
+  margin-top: 20px;
+}
+
+.mb-20px {
+  margin-bottom: 20px;
+}
+
+.pt-20px {
+  padding-top: 20px;
+}
+
+.pb-20px {
+  padding-bottom: 20px;
 }

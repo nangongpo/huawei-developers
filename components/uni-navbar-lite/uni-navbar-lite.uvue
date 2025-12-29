@@ -1,0 +1,95 @@
+<script setup lang="uts">
+  import { Props } from './type.uts'
+
+  const props = withDefaults(defineProps<Props>(), {
+    title: '',
+    titleClass: '',
+    backIcon: '',
+    backText: '',
+    backClass: '',
+    isLeft: false,
+    textColor: '#000000',
+    bgColor: '#ffffff',
+    statusBar: false
+  })
+
+  const navbarTitle = ref(props.title)
+  let statusBarHeight = ref(0)
+
+  onMounted(() => {
+    uni.setNavigationBarColor({
+      frontColor: props.textColor,
+      backgroundColor: props.bgColor,
+    })
+
+    // #ifdef MP-WEIXIN
+    // TODO 部分小程序平台不支持getWindowInfo
+    statusBarHeight.value = uni.getWindowInfo().statusBarHeight
+    // #endif
+
+    // if (props.stat && props.title != '') {
+    //   uni.report({
+    //     name: 'title',
+    //     options: props.title
+    //   })
+    // }
+  })
+
+  const back = () => {
+    uni.navigateBack({});
+  }
+</script>
+
+<template>
+  <view class="uni-navbar">
+    <!-- #ifdef APP || WEB -->
+    <view v-if="statusBar" class="status-bar"></view>
+    <!-- #endif -->
+    <!-- #ifdef MP -->
+    <view v-if="statusBar" class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
+    <!-- #endif -->
+    <view class="uni-navbar-inner">
+      <view class="left-content" @click="back">
+        <text v-if="backText" :class="backClass" :style="{ color: textColor }">{{ backText }}</text>
+        <iconfont v-if="backIcon" :name="backIcon" :class="backClass" :color="textColor" size="24px" hover-class="none" />
+      </view>
+      <view class="uni-navbar-content" :class="[{ 'is-left': isLeft }, titleClass]">
+        <text :style="{ color: textColor }">
+          <slot>{{ navbarTitle }}</slot>
+        </text>
+      </view>
+      <view class="right-content">
+        <slot name="right"></slot>
+      </view>
+    </view>
+  </view>
+</template>
+
+<style lang="scss" scoped>
+  .status-bar {
+    height: var(--status-bar-height);
+  }
+
+  .uni-navbar-inner {
+    flex-direction: row;
+    justify-content: space-between;
+    height: $uni-navbar-height;
+  }
+
+  .left-content,
+  .right-content {
+    justify-content: center;
+    align-items: center;
+  }
+
+  .uni-navbar-content {
+    flex-grow: 1;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .is-left {
+    justify-content: flex-start;
+  }
+</style>

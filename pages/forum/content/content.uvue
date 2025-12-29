@@ -1,0 +1,56 @@
+<script setup lang="uts">
+  import { ActionSheetAction } from "@/uni_modules/rice-ui"
+
+  const title = ref('')
+  const showAction = ref(false)
+  const actions: ActionSheetAction[] = [
+    { name: '举报', color: '#dd524d' },
+    { name: '取消', color: '#308eff' }
+  ]
+
+  function onSelect(action: ActionSheetAction, index: number) {
+    if (action.name == '取消') {
+      showAction.value = false
+    } else if (action.name == '举报') {
+      uni.navigateTo({
+        url: '/pages/report/report',
+        success: res => {},
+        fail: () => {},
+        complete: () => {}
+      })
+    }
+  }
+</script>
+
+<template>
+  <view class="flex-1">
+    <!-- 状态栏占位 -->
+    <view class="status-bar"></view>
+    <common-back-navbar :title="title" class="uni-padding-wrap">
+    	<template #right>
+    		<iconfont name="ellipsis-vertical" size="24px" hover-class="none" @click="showAction = true"></iconfont>
+    	</template>
+    </common-back-navbar>
+    <rice-action-sheet v-model:show="showAction" :actions="actions" :show-cancel="false" @select="onSelect" />
+    <scroll-view style="flex:1">
+      <view class="uni-padding-wrap">
+        <view>帖子标题</view>
+
+        <view>94人查看 | 发表于 2021-05-13 18:31</view>
+
+        <view>发布人信息</view>
+
+        <view>帖子内容</view>
+      </view>
+      <view class="uni-padding-wrap">
+        <view>0回复  0收藏 0点赞</view>
+        <view>回复列表</view>
+      </view>
+    </scroll-view>
+    <view class="uni-padding-wrap" style="height: 44px;">发表回复  点赞 收藏 分享</view>
+  </view>
+</template>
+
+<style>
+
+</style>

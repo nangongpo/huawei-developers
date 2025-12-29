@@ -1,0 +1,31 @@
+<script setup lang="uts">
+  import { useCountdown } from '@/composables'
+
+  const countdownSeconds = 5
+  const timer = useCountdown(countdownSeconds, {
+    onComplete() {
+      uni.reLaunch({
+        url: '/pages/tab-bar/explore'
+      })
+    },
+  })
+
+  const showSecond = computed(() : boolean => {
+    return timer.remaining.value > 0
+  })
+
+	onMounted(() => {
+    timer.start()
+  })
+</script>
+
+<template>
+	<view class="flex-1 flex justify-center items-center">
+    启动界面
+    <text v-show="showSecond">{{ timer.remaining }}s</text>
+	</view>
+</template>
+
+<style>
+
+</style>

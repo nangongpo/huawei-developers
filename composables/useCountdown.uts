@@ -1,0 +1,178 @@
+import { shallowRef, ComputedRef } from 'vue'
+import { MaybeRefOrGetter } from './types.uts'
+import { safeUnrefNumber } from './utils.uts'
+import { useIntervalFn, UseIntervalFnReturn } from './useIntervalFn.uts'
+import { tryOnScopeDispose } from './tryOnScopeDispose.uts'
+
+/**
+ * useCountdown 配置项
+ */
+export type UseCountdownOptions = {
+  /** 倒计时间隔 (毫秒) */
+  interval?: MaybeRefOrGetter<number>
+  /** 结束回调 */
+  onComplete?: () => void
+  /** 滴答回调 */
+  onTick?: () => void
+  /** 立即开始 */
+  immediate?: boolean
+}
+
+/**
+ * useCountdown 返回值接口
+ */
+export interface UseCountdownReturn {
+  remaining: ComputedRef<number>
+  isActive: ComputedRef<boolean>
+  pause(): void
+  resume(): void
+  stop(): void
+
+  /** 重置倒计时 (使用初始值) */
+  reset(): void
+  /** 重置倒计时为指定值 */
+  reset(countdown: MaybeRefOrGetter<number>): void
+
+  /** 开始倒计时 (从当前值继续) */
+  start(): void
+  /** 以指定时间开始倒计时 */
+  start(countdown: MaybeRefOrGetter<number>): void
+}
+
+/**
+ * 倒计时组合式函数 (Composable)。
+ * ### 特性
+ * - **双向重载**：支持不传参启动或带参重置启动。
+ * - **自动销毁**：在页面关闭或组件卸载时自动清理定时器。
+ * - **响应式**：支持传入 Ref 作为初始值或间隔时间。
+ * @example
+ * ```
+ * // 1. 基础用法 (60秒倒计时)
+ * const countdown = useCountdown(60, {
+ * onComplete: () => console.log('倒计时结束')
+ * })
+ * * // 2. 手动控制
+ * countdown.start()  // 开始
+ * countdown.pause()  // 暂停
+ * * // 3. 动态重置
+ * countdown.reset(10) // 改为从10秒开始
+ * ```
+ * @param initialCountdown 初始时长（通常为秒）
+ * @param options 计时器配置项
+ * @returns 包含状态和控制方法的对象
+ */
+export function useCountdown(
+  initialCountdown: MaybeRefOrGetter<number>,
+  options: UseCountdownOptions | null = null
+): UseCountdownReturn {
+  return new UseCountdownReturnImpl(initialCountdown, options)
+}
+
+class UseCountdownReturnImpl implements UseCountdownReturn {
+  private _initialCountdown: MaybeRefOrGetter<number>
+  private _onComplete: (() => void) | null
+  private _onTick: (() => void) | null
+
+  private _remaining = shallowRef<number>(0)
+  private _intervalController: UseIntervalFnReturn
+
+  remaining: ComputedRef<number> = computed((): number => this._remaining.value)
+  isActive: ComputedRef<boolean> = computed((): boolean => this._intervalController.isActive.value)
+
+  constructor(initialCountdown: MaybeRefOrGetter<number>, options: UseCountdownOptions | null) {
+    const optionsSafe = options ?? ({} as UseCountdownOptions)
+    this._initialCountdown = initialCountdown
+    this._onComplete = optionsSafe.onComplete ?? null
+    this._onTick = optionsSafe.onTick ?? null
+
+    // 初始化
+    this._remaining.value = safeUnrefNumber(initialCountdown)
+
+    this._intervalController = useIntervalFn((_args: any[]) => {
+      this._tick()
+    }, optionsSafe.interval ?? 1000, {
+      immediate: optionsSafe.immediate ?? false
+    })
+
+    tryOnScopeDispose(() => {
+      this.stop()
+    })
+  }
+
+  /**
+   * 内部统一重置逻辑
+   * @param countdown 如果传 null 则使用构造函数传入的初始值
+   */
+  private _internalReset(countdown: MaybeRefOrGetter<number> | null) {
+    if (countdown != null) {
+      this._remaining.value = safeUnrefNumber(countdown)
+    } else {
+      this._remaining.value = safeUnrefNumber(this._initialCountdown)
+    }
+  }
+
+  private _tick() {
+    if (this._remaining.value > 0) {
+      this._remaining.value -= 1
+
+      if (this._onTick != null) this._onTick!()
+
+      if (this._remaining.value <= 0) {
+        this.pause()
+        if (this._onComplete != null) this._onComplete!()
+      }
+    }
+  }
+
+  pause() { this._intervalController.pause() }
+
+  resume() {
+    if (!this._intervalController.isActive.value) {
+      if (this._remaining.value > 0){
+        this._intervalController.resume()
+      }
+    }
+  }
+
+  stop() {
+    this.pause()
+    this.reset()
+  }
+
+  // #ifdef APP
+  override reset() {
+    this._internalReset(null)
+  }
+
+  override reset(countdown: MaybeRefOrGetter<number>) {
+    this._internalReset(countdown)
+  }
+
+  override start() {
+    if (this._remaining.value <= 0) {
+      this.reset()
+    }
+    this.resume()
+  }
+
+  override start(countdown: MaybeRefOrGetter<number>) {
+    this._internalReset(countdown)
+    this.resume()
+  }
+  // #endif
+
+  // #ifndef APP
+  reset(countdown?: MaybeRefOrGetter<number>) {
+    this._internalReset(countdown)
+  }
+
+  start(countdown?: MaybeRefOrGetter<number>) {
+    if (countdown != null) {
+      this._internalReset(countdown)
+    } else if (this._remaining.value <= 0) {
+      this.reset()
+    }
+    this.resume()
+  }
+  // #endif
+}

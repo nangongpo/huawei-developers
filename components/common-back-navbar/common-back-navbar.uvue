@@ -1,10 +1,15 @@
 <script setup lang="uts">
-	const props = defineProps<{
-		title: string
-	}>()
-	
-	const titleClass = computed(() => props.title == null ? 'flex-grow-1' : 'flex-shrink-1 text-ellipsis')
-	
+  type Props = {
+    title?: string
+  }
+
+  const props = withDefaults(defineProps<Props>(), {
+    title: ''
+  })
+
+  const showTitle = computed(() => props.title != '')
+	const titleClass = computed(() => showTitle.value ? 'flex-shrink-1 text-ellipsis' : 'flex-grow-1')
+
 	function navigateBack() {
 		uni.navigateBack()
 	}
@@ -12,12 +17,14 @@
 
 <template>
 	<view class="back-navbar-container">
-		<iconfont name="left-arrow" size="24px" hover-class="none" @click="navigateBack" />
-		
-		<text class="back-navbar-title uni-common-pl" :class="titleClass">{{ title }}</text>
-		
+    <slot name="left">
+      <iconfont name="left-arrow" size="24px" hover-class="none" @click="navigateBack" />
+    </slot>
+
+		<text v-if="showTitle" class="back-navbar-title uni-common-pl" :class="titleClass">{{ title }}</text>
+
 		<text class="flex-grow-1"></text>
-		
+
 		<slot name="right"></slot>
 	</view>
 </template>

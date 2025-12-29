@@ -3,7 +3,6 @@
 	import activity from '@/pages/explore/activity/activity.uvue'
 	import academy from '@/pages/explore/academy/academy.uvue'
 
-	const windowWidth = ref(0)
 	const tabs = ['资讯', '活动', '学堂']
 	const swiperIndex = ref(0)
 	// swiper组件disable-touch无法动态切换
@@ -12,37 +11,20 @@
 	function changeTab(index : number) {
 		swiperIndex.value = index
 	}
-	
+
 	function swiperChange(e: UniSwiperChangeEvent) {
 		swiperIndex.value = e.detail.current
 	}
-	
+
 	function disableOuterSwiper() {
 		disableSwiperTouch.value = true
 		console.log('disableOuterSwiper', disableSwiperTouch.value)
 	}
-	
+
 	function enableOuterSwiper() {
 		disableSwiperTouch.value = false
 		console.log('enableOuterSwiper', disableSwiperTouch.value)
 	}
-	
-	function setPageWidth() {
-		const windowInfo = uni.getWindowInfo()
-		windowWidth.value = windowInfo.windowWidth
-	}
-	
-	onReady(() => {
-		console.log('onReady')
-		setPageWidth()
-	})
-	
-	onResize(() => {
-		console.log('onResize')
-		setPageWidth()
-	})
-	
-	provide('windowWidth', windowWidth)
 </script>
 
 <template>
@@ -53,9 +35,9 @@
 		<view class="swiper-tabs">
 			<text
 				class="swiper-tab"
-				v-for="(tab, index) in tabs" 
-				:key="index" 
-				:class="{ active: swiperIndex == index }" 
+				v-for="(tab, index) in tabs"
+				:key="index"
+				:class="{ active: swiperIndex == index }"
 				@click="changeTab(index)">
 				{{ tab }}
 			</text>
@@ -75,11 +57,11 @@
 		<swiper-item>
 			<news v-show="swiperIndex == 0" :is-active="swiperIndex == 0"></news>
 		</swiper-item>
-		
+
 		<swiper-item>
 			<activity v-show="swiperIndex == 1" :is-active="swiperIndex == 1"></activity>
 		</swiper-item>
-		
+
 		<swiper-item>
 			<academy v-show="swiperIndex == 2" :is-active="swiperIndex == 2"></academy>
 		</swiper-item>

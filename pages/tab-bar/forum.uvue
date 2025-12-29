@@ -1,77 +1,236 @@
 <script setup lang="uts">
-	import { TabsOptions, TabsClickTab, TabsChange } from '@/components/base-tabs/type.uts'
+  import { TabsOptions, TabsClickTab, TabsChange } from '@/components/rice-tabs-new/type.uts'
+  import { PostSectionItem, PostListItem, PostTagItem, PostGroup, getTagItems, getTagItemsName } from '@/pages/forum/forum.type.uts'
+  import { postSectionData, postStatusData, postsAllData } from '@/pages/forum/forum.mock.uts'
 
-	const tabsOptions = shallowRef<TabsOptions[]>([])
-	const activeIndex = ref(0)
-	
-	function goSearch() {
-		uni.navigateTo({
-			url: '/pages/forum/search/search'
-		})
-	}
-	
-	function tabClick(e: TabsClickTab) {
-		console.log('TabsClickTab', e)
-	}
-	
-	onMounted(() => {
-		tabsOptions.value = [
-			{ name: '推荐', value: '' },
-			{ name: 'HarmonyOS 5及以上', value: '' },
-			{ name: 'HarmonyOS SDK', value: '' },
-			{ name: '激励计划', value: '' },
-			{ name: 'HarmonyOS 3/4', value: '' },
-			{ name: '设备开发', value: '' },
-			{ name: 'HarmonyOS Connect', value: '' }
-		]
-	})
+  const tabsRef = shallowRef<UniElement | null>(null)
+  const tabsOptions = shallowRef<TabsOptions[]>([])
+  const activeIndex = ref(0)
+
+  const refresherTriggered = ref(false)
+  const pullingDistance = ref(0)
+  const resetting = ref(false)
+  // const triggered = ref(false)
+  const state = computed(() => {
+    if (resetting.value) {
+      return 3
+    }
+    if (refresherTriggered.value) {
+      return 2
+    }
+    if (pullingDistance.value > 45) {
+      return 1
+    } else {
+      return 0
+    }
+  })
+
+  const loading = ref(false)
+  const searchResult = shallowRef<PostListItem[]>([])
+  const isEnded = ref(false)
+  const loadingError = ref('')
+  const currentPage = ref(1)
+
+  const loadingText = computed(() : string => {
+    if (loading.value) {
+      return "加载中..."
+    } else if (isEnded.value) {
+      return "已经到底啦"
+    } else if (loadingError.value.length > 0) {
+      return loadingError.value
+    } else {
+      return ""
+    }
+  })
+
+  function goSearch() {
+    uni.navigateTo({
+      url: '/pages/forum/search/search'
+    })
+  }
+
+  function goAddForum() {
+    uni.navigateTo({
+      url: '/pages/forum/add/add'
+    })
+  }
+
+  function handleSearch(index : number) {
+    const { value: section_id } = tabsOptions.value[index] as TabsOptions
+    if (section_id == null) {
+      searchResult.value = []
+      loading.value = false
+      isEnded.value = true
+      return
+    }
+    loading.value = true
+    setTimeout(() => {
+      searchResult.value = postsAllData
+        .filter((v: PostListItem) => v.section_id == section_id)
+        .map((v: PostListItem): PostListItem => {
+          const tagItems = getTagItems(v)
+          return { ...v, tagItems, tagItemsName: getTagItemsName(tagItems) }
+        })
+      loading.value = false
+      isEnded.value = true
+    }, 1000)
+  }
+
+  function onClickResultItem(item : PostListItem) {
+    console.log('click', item)
+    uni.navigateTo({
+      url: '/pages/forum/content/content'
+    })
+  }
+
+  function tabClick(e : TabsClickTab) {
+    console.log('TabsClickTab', e)
+    handleSearch(e.index)
+  }
+
+  function onRefresherpulling(e : UniRefresherEvent) {
+    pullingDistance.value = e.detail.dy
+    // triggered.value = true
+  }
+
+  function onRefresherrefresh() {
+    refresherTriggered.value = true
+    setTimeout(() => {
+      refresherTriggered.value = false
+      resetting.value = true
+    }, 1500)
+  }
+
+  function onRefreshrestore() {
+    pullingDistance.value = 0
+    resetting.value = false
+  }
+
+  onMounted(() => {
+    tabsOptions.value = postSectionData
+      .filter((v : PostSectionItem) => v.display)
+      .map((v : PostSectionItem) : TabsOptions => {
+        return { name: v.name, value: v.id, badge: null }
+      })
+    // 默认选择
+    handleSearch(activeIndex.value)
+  })
 </script>
 
 <template>
-	<!-- 状态栏占位 -->
-	<view class="status-bar"></view>
-	<view class="forum-header uni-padding-wrap">
-		<view class="search-box flex-grow-1 uni-common-mr" @click="goSearch">
-			<uni-iconfont name="search" class="text-placeholder" />
-			<text class="text-placeholder">搜索...</text>
-		</view>
-		<!-- 消息中心 -->
-		<message-center-icon></message-center-icon>
-	</view>
-	<view class="uni-padding-wrap">
-<!-- 		<base-tabs
-			v-model="activeIndex"
-			line-height="2px"
-			line-width="100%"
-			:item-style="{ fontSize: '18px' }"
-			:active-style="{ fontSize: '24px' }"		
-			:list="tabsOptions" 
-			@clickTab="tabClick">
-		</base-tabs> -->
-	</view>
-	<scroll-view class="flex-1 uni-padding-wrap">
-		论坛
-	</scroll-view>
+  <!-- 状态栏占位 -->
+  <view class="status-bar"></view>
+  <view class="forum-header uni-padding-wrap">
+    <view class="search-box flex-grow-1 uni-common-mr" @click="goSearch">
+      <uni-iconfont name="search" class="text-placeholder" />
+      <text class="text-placeholder">搜索...</text>
+    </view>
+    <!-- 消息中心 -->
+    <message-center-icon></message-center-icon>
+  </view>
+  <view class="uni-padding-wrap my-12px">
+    <rice-tabs-new ref="tabsRef" v-model="activeIndex" :shrink="false" :height="36" line-width="100%" line-height="2px"
+      :item-style="{ fontSize: '18px' }" :active-style="{ fontSize: '24px' }" :list="tabsOptions" @clickTab="tabClick">
+    </rice-tabs-new>
+  </view>
+  <view v-if="loading" class="flex-1 flex justify-center items-center">
+    <rice-loading mode="semicircle" />
+  </view>
+  <list-view v-else :show-scrollbar="false" :refresher-enabled="true" :refresher-triggered="refresherTriggered"
+    refresher-default-style="none" @refresherpulling="onRefresherpulling" @refresherrefresh="onRefresherrefresh"
+    @refresherrestore="onRefreshrestore" :refresher-max-drag-distance="200" class="flex-1">
+    <list-item v-for="(item, index) in searchResult" :key="item.id" :type="item.id" class="uni-padding-wrap"
+      :class="{ 'mt-12px': index == 0 }" @click="onClickResultItem(item)">
+      <view class="mb-12px title-box">
+        <view class="flex-row title-prefix">
+          <text v-for="tagItem in item.tagItems" :key="tagItem.name" :style="{ background: tagItem.color, color: 'white' }" class="tag-base">
+            {{ tagItem.name }}
+          </text>
+        </view>
+        <base-text ellipsis :lines="2" class="font-bold">
+          {{ item.tagItemsName + item.name }}
+        </base-text>
+      </view>
+      <view class="mb-12px" :class="{ 'flex-row': item.image }">
+        <view class="flex-1">
+         <base-text ellipsis :lines="3" class="text-base">{{ item.content }}</base-text>
+        </view>
+        <image v-if="item.image" :src="item.image" style="width:100px;height:50px;margin-left:20px"></image>
+      </view>
+      <view class="flex-row flex-wrap mb-12px">
+        <text v-for="tag in item.tag.split(',')" :key="tag" class="tag-sm">{{ tag }}</text>
+      </view>
+      <view class="flex-row items-center">
+        <text class="text-sm text-grey mr-6px">{{ item.author }}</text>
+        <text class="vertical-divider mr-6px"></text>
+        <text class="text-sm text-grey mr-6px">{{ item.visits }}查看</text>
+        <text class="text-sm text-grey mr-6px">{{ item.likes }}点赞</text>
+        <text class="text-sm text-grey">{{ item.comments }}回复</text>
+      </view>
+      <view class="horizontal-divider"></view>
+    </list-item>
+    <list-item v-if="searchResult.length > 0" class="pb-20px">
+      <rice-loading v-show="loading" mode="semicircle" size="28" :text="loadingText"></rice-loading>
+      <text v-show="!loading" class="text-base text-grey text-center">{{ loadingText }}</text>
+    </list-item>
+    <list-item v-else class="flex-1 flex justify-center items-center">
+      <text v-show="!loading && !refresherTriggered">暂无数据</text>
+    </list-item>
+    <!-- 自定义下拉刷新元素 -->
+    <list-item slot="refresher">
+      <refresh-box :state="state"></refresh-box>
+    </list-item>
+  </list-view>
+  <!-- 添加帖子 -->
+  <view v-show="searchResult.length > 0" class="absolute add-forum-button" @click="goAddForum">
+    <iconfont name="plus" size="24px" icon-class="text-white font-bold" hover-class="none"></iconfont>
+  </view>
 </template>
 
 <style lang="scss" scoped>
-	.forum-header {
-		height: $uni-navbar-height;
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-	}
-	.search-box {
-		color: $uni-text-color-placeholder;
-		background: $uni-bg-color-grey;
-		height: 44px;
-		border-radius: 22px;
-		padding: 0 16px;
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-	}
-	.search-box .uni-iconfont {
-		margin-right: 12px;
-	}
+  .forum-header {
+    height: $uni-navbar-height;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .search-box {
+    background: $uni-bg-color-grey;
+    height: 44px;
+    border-radius: 22px;
+    padding: 0 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .search-box .uni-iconfont {
+    margin-right: 12px;
+  }
+
+  .title-box {
+    position: relative;
+  }
+
+  .title-prefix {
+    position: absolute;
+    left: 0;
+    /* #ifdef WEB || MP */
+    top: 2px;
+    /* #endif */
+  }
+  .add-forum-button {
+    bottom: 60px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    border-radius: 48px;
+    background: $uni-color-primary;
+    box-shadow: 0px 2px 12px 0 $uni-color-primary;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
 </style>

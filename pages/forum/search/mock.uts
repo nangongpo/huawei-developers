@@ -1,47 +1,84 @@
-import { PostItem, ResultItem } from './type.uts'
+import { PostListItem } from '../forum.type.uts'
 
-export const hotSearchRecordData: string[] = ['HarmonyOS', '实名认证', 'HMS Core', 'Serverless', '生态市场', '应用上架', '仓颉', 'HUAWEIHiAI', '表盘', '推送', '主题', '公测']
-
-export const postListData: PostItem[] = [
-	{ title: '开发者们打算怎么花激励金？', url: 'https://www.baidu.com' },
-	{ title: '📜【官方】开发者积分全攻略：获取、兑换与专属福利一览', url: 'https://www.baidu.com' },
-	{ title: '开发者联盟12月积分兑换活动即将开启，速来锁定心仪好礼！', url: 'https://www.baidu.com' },
-	{ title: '6.0.0.115版本', url: 'https://www.baidu.com' },
-	{ title: '期待115的5A', url: 'https://www.baidu.com'},
-	{ title: '怎么升级112版本', url: 'https://www.baidu.com'},
-	{ title: '鸿蒙5.0和6.0桌面的图标和文件夹能不能恢复成一排可以放五个？', url: 'https://www.baidu.com'},
-	{ title: '什么时候升级', url: 'https://www.baidu.com'}
-]
-
-export const searchResultData: ResultItem[] = [
-	{
-		id: 1,
-		title: 'HarmonyOS 鸿蒙Next版 浙政钉 适配请求', 
-		content: '浙政钉 HarmonyOS 鸿蒙Next版 是否在适配？如果在适配一般在啥时候可以测试？', 
-		tag: 'HarmonyOS 5', 
-		author: '李四', 
-		visits: 1083, 
-		likes: 0, 
-		comments: 2
-	},
-	{
-		id: 2,
-		title: 'HarmonyOS 鸿蒙6', 
-		content: '你们正常申请鸿蒙6，几天给推到手机的，我这直接没有通过审核😭', 
-		tag: '系统运维',
-		author: '张三',
-		visits: 670,
-		likes: 0,
-		comments: 1
-	},
-	{
-		id: 3,
-		title: '# HDC2024心得分享 HarmonyOS 鸿蒙 ArkTs 自定义组件', 
-		content: 'HarmonyOS 鸿蒙', 
-		tag: 'ArkUI(方舟UI框架),UI,Ability框架,华为分享',
-		author: '王五',
-		visits: 546,
-		likes: 1,
-		comments: 0
-	}
+export const searchResultData : PostListItem[] = [
+  {
+    section_id: 1,
+    category_id: 1,
+    id: 1,
+    name: 'HarmonyOS 鸿蒙Next版 浙政钉 适配请求',
+    content: '浙政钉 HarmonyOS 鸿蒙Next版 是否在适配？如果在适配一般在啥时候可以测试？',
+    tag: 'HarmonyOS 5',
+    author: '李四',
+    visits: 1083,
+    likes: 0,
+    comments: 2,
+    bounty: 0,
+    status: 1,
+    pinned: false,
+    group: [],
+  },
+  {
+    section_id: 1,
+    category_id: 1,
+    id: 2,
+    name: 'HarmonyOS 鸿蒙6',
+    content: '你们正常申请鸿蒙6，几天给推到手机的，我这直接没有通过审核😭',
+    tag: '系统运维',
+    author: '张三',
+    visits: 670,
+    likes: 0,
+    comments: 1,
+    bounty: 0,
+    status: 1,
+    pinned: false,
+    group: []
+  },
+  {
+    section_id: 1,
+    category_id: 1,
+    id: 3,
+    name: '# HDC2024心得分享 HarmonyOS 鸿蒙 ArkTs 自定义组件',
+    content: 'HarmonyOS 鸿蒙',
+    tag: 'ArkUI(方舟UI框架),UI,Ability框架,华为分享',
+    author: '王五',
+    visits: 546,
+    likes: 1,
+    comments: 0,
+    bounty: 0,
+    status: 1,
+    pinned: false,
+    group: []
+  },
+  {
+    section_id: 1,
+    category_id: 1,
+    id: 4,
+    name: 'HarmonyOS 鸿蒙6 发布会',
+    content: '鸿蒙6发布会，还剩70分钟已在此等候',
+    tag: 'HarmonyOS 6',
+    author: 'Michael',
+    visits: 1040,
+    likes: 3,
+    comments: 34,
+    bounty: 0,
+    status: 1,
+    pinned: false,
+    group: []
+  },
+  {
+    section_id: 1,
+    category_id: 1,
+    id: 5,
+    name: '#如何创新玩转HarmonyOS开发#上海杉达学院mhj',
+    content: '#如何创新玩转HarmonyOS开发#2019 年 8 月 9 日正式发布的 HarmonyOS 鸿蒙系统拥有分布架构、内核安全、生态共享、天生流畅四大优势...HarmonyOS支持Java和JS双语音开发...',
+    tag: '华为分享',
+    author: '小马',
+    visits: 228,
+    likes: 4,
+    comments: 3,
+    bounty: 0,
+    status: 1,
+    pinned: false,
+    group: []
+  }
 ]

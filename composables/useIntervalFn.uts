@@ -1,0 +1,192 @@
+import { ComputedRef, shallowRef } from 'vue'
+import { MaybeRefOrGetter } from './types.uts'
+import { safeUnrefNumber } from './utils.uts'
+import { tryOnScopeDispose } from './tryOnScopeDispose.uts'
+
+/**
+ * useIntervalFn 配置项
+ */
+export type UseIntervalFnOptions = {
+  /**
+   * 是否在调用时立即启动定时器
+   * @default true
+   */
+  immediate?: boolean
+
+  /**
+   * 执行 resume 时是否立即触发一次回调函数
+   * @default false
+   */
+  immediateCallback?: boolean
+}
+
+/**
+ * useIntervalFn 返回值接口
+ */
+export interface UseIntervalFnReturn {
+  /** * 定时器是否激活状态
+   */
+  isActive : ComputedRef<boolean>
+
+  /** * 暂停定时器
+   */
+  pause() : void
+
+  /** * 恢复/启动定时器 (不传参)
+   */
+  resume() : void
+
+  /** * 恢复/启动定时器并传递参数给回调函数
+   * @param args 透传给回调函数的参数列表
+   */
+  resume(...args : any[]) : void
+}
+
+/**
+ * 封装 setInterval 的控制逻辑，支持响应式间隔时间与暂停/恢复。
+ * * ### 特性
+ * - 自动销毁：在组件卸载时自动清理定时器和监听器。
+ * - 响应式间隔：当 interval 变化时，如果定时器处于激活状态，会自动重启以应用新间隔。
+ *
+ * @example
+ * ```
+ * // 1. 基本用法
+ * const intervalTimer = useIntervalFn((args : any[]) => {
+ * console.log('每秒执行一次')
+ * }, 1000)
+ * // 2. 传参用法
+ * const intervalTimer = useIntervalFn((args : any[]) => {
+ * const [msg] = args
+ * console.log('消息:', msg)
+ * }, 2000, { immediate: false })
+ * // 恢复执行并传参
+ * intervalTimer.resume('Hello UTS!')
+ * // 3. 响应式间隔
+ * const delay = ref(1000)
+ * useIntervalFn((args : any[]) => {
+ *   console.log('延迟执行')
+ * }, delay)
+ * ```
+ * @param cb 回调函数
+ * @param interval 间隔时间 (ms)，支持 number | Ref<number> | () => number
+ * @param options 配置项
+ */
+export function useIntervalFn(
+  cb : (args : any[]) => void,
+  interval : MaybeRefOrGetter<number> | null = 1000,
+  options : UseIntervalFnOptions | null = null
+) : UseIntervalFnReturn {
+  return new UseIntervalFnReturnImpl(cb, interval, options)
+}
+
+/**
+ * UseIntervalFn 内部实现类
+ */
+class UseIntervalFnReturnImpl implements UseIntervalFnReturn {
+  private _cb : (args : any[]) => void
+  private _interval : MaybeRefOrGetter<number> | null
+  private _immediateCallback : boolean
+
+  private _isActive = shallowRef(false)
+  private _timer : number | null = null
+  private _watchStopHandle : (() => void) | null = null
+
+  // 对外暴露的状态
+  isActive : ComputedRef<boolean> = computed(() : boolean => this._isActive.value)
+
+  constructor(
+    cb : (args : any[]) => void,
+    interval : MaybeRefOrGetter<number> | null,
+    options : UseIntervalFnOptions | null
+  ) {
+    this._cb = cb
+    this._interval = interval
+
+    const optionsSafe = options ?? ({} as UseIntervalFnOptions)
+    const immediate = optionsSafe.immediate ?? true
+    this._immediateCallback = optionsSafe.immediateCallback ?? false
+
+    // 1. 响应式间隔时间监听
+    // 如果 interval 是 Ref 或 Getter，当它改变时需要重启定时器
+    this._watchStopHandle = watch((): any | null => this._interval, () => {
+      if (this._isActive.value) {
+        this.resume()
+      }
+    })
+
+    // 2. 初始化立即执行逻辑
+    if (immediate) {
+      this.resume()
+    }
+
+    // 3. 自动销毁
+    tryOnScopeDispose(() => {
+      this.pause()
+      if (this._watchStopHandle != null) {
+        this._watchStopHandle!()
+      }
+    })
+  }
+
+  /**
+   * 清除原生定时器
+   */
+  private _clearTimer() {
+    if (this._timer != null) {
+      clearInterval(this._timer as number)
+      this._timer = null
+    }
+  }
+
+  /**
+   * 暂停 (接口实现)
+   */
+  pause() {
+    this._isActive.value = false
+    this._clearTimer()
+  }
+
+  // #ifdef APP
+  override resume() {
+    this._coreResume([] as any[])
+  }
+
+  override resume(...args : any[]) {
+    this._coreResume(args)
+  }
+  // #endif
+
+  // #ifndef APP
+  resume(...args : any[]) {
+    this._coreResume(args)
+  }
+  // #endif
+
+  /**
+   * 核心恢复逻辑
+   */
+  private _coreResume(args : any[]) {
+    const intervalValue = safeUnrefNumber(this._interval)
+
+    // 如果间隔时间无效，则不启动
+    if (intervalValue <= 0) {
+      return
+    }
+
+    this._isActive.value = true
+
+    // 如果配置了立即执行
+    if (this._immediateCallback) {
+      this._cb(args)
+    }
+
+    this._clearTimer()
+
+    // 再次检查 isActive，防止 immediateCallback 中调用了 pause
+    if (this._isActive.value) {
+      this._timer = setInterval(() => {
+        this._cb(args)
+      }, intervalValue)
+    }
+  }
+}

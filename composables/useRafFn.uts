@@ -1,0 +1,171 @@
+import { shallowRef, ComputedRef } from 'vue'
+import { MaybeRefOrGetter } from './types.uts'
+import { safeUnrefNumber } from './utils.uts'
+import { tryOnScopeDispose } from './tryOnScopeDispose.uts'
+
+/**
+ * 回调函数参数
+ */
+export type UseRafFnCallbackArguments = {
+  /**
+   * 当前帧与上一帧之间的时间差 (ms)
+   */
+  delta: number
+  /**
+   * 当前时间戳 (ms)
+   */
+  timestamp: number
+}
+
+/**
+ * useRafFn 配置项
+ */
+export type UseRafFnOptions = {
+  /**
+   * 是否立即启动
+   * @default true
+   */
+  immediate?: boolean
+  /**
+   * 最大帧率限制 (FPS)。设置为 undefined 或 null 则不限制。
+   * @default undefined
+   */
+  fpsLimit?: MaybeRefOrGetter<number>
+  /**
+   * 是否仅执行一次
+   * @default false
+   */
+  once?: boolean
+}
+
+/**
+ * useRafFn 返回值接口
+ */
+export interface UseRafFnReturn {
+  /** 是否正在运行 */
+  isActive: ComputedRef<boolean>
+  /** 暂停 */
+  pause(): void
+  /** 恢复/启动 */
+  resume(): void
+}
+
+/**
+ * 在每一帧 requestAnimationFrame 调用函数，支持暂停、恢复及帧率限制。不支持es6解构
+ * ### 特性
+ * - **高性能**：基于原生 requestAnimationFrame，自动适配系统刷新率。
+ * - **帧率控制**：支持通过 `fpsLimit` 限制执行频率以节省性能。
+ * - **自动销毁**：在组件卸载或作用域销毁时自动停止循环，防止内存泄漏。
+ * @example
+ * ```
+ * // 1. 基本动画循环
+ * const raf = useRafFn((args : UseRafFnCallbackArguments) => {
+ * console.log('距离上一帧时长:', args.delta)
+ * })
+ * * // 2. 限制帧率（例如省电模式或降低计算频率）
+ * const lowFpsRaf = useRafFn(() => {
+ * // 这里的逻辑每秒最多运行 20 次
+ * }, { fpsLimit: 20 })
+ * * // 3. 停止与恢复
+ * const toggle = () => {
+ * if (raf.isActive.value) {
+ * raf.pause()
+ * } else {
+ * raf.resume()
+ * }
+ * }
+ * ```
+ * @param fn 每帧执行的回调函数
+ * @param options 配置项 (immediate, fpsLimit, once)
+ * @returns 包含控制方法和状态的对象
+ */
+export function useRafFn(
+  fn: (args: UseRafFnCallbackArguments) => void,
+  options: UseRafFnOptions | null = null
+): UseRafFnReturn {
+  return new UseRafFnReturnImpl(fn, options)
+}
+
+class UseRafFnReturnImpl implements UseRafFnReturn {
+  private _fn: (args: UseRafFnCallbackArguments) => void
+  private _options: UseRafFnOptions
+
+  private _isActive = shallowRef(false)
+  private _rafId: number | null = null
+  private _previousFrameTimestamp: number = 0
+
+  isActive: ComputedRef<boolean> = computed((): boolean => this._isActive.value)
+
+  constructor(fn: (args: UseRafFnCallbackArguments) => void, options: UseRafFnOptions | null) {
+    this._fn = fn
+    // 使用安全配置对象模式
+    const safeOptions: UseRafFnOptions = (options != null ? options : {} as UseRafFnOptions)
+    this._options = safeOptions
+
+    if (safeOptions.immediate ?? true) {
+      this.resume()
+    }
+
+    tryOnScopeDispose(() => {
+      this.pause()
+    })
+  }
+
+  /**
+   * 核心循环逻辑
+   */
+  private _loop(timestamp: number) {
+    if (!this._isActive.value) return
+
+    // 初始化第一帧时间戳
+    if (this._previousFrameTimestamp == 0) {
+      this._previousFrameTimestamp = timestamp
+    }
+
+    const delta = timestamp - this._previousFrameTimestamp
+    const fpsLimit = this._options.fpsLimit
+    const intervalLimit = fpsLimit != null ? 1000 / safeUnrefNumber(fpsLimit) : 0
+
+    // 帧率限制判断
+    if (intervalLimit > 0 && delta < intervalLimit) {
+      this._rafId = requestAnimationFrame((t: number) => this._loop(t))
+      return
+    }
+
+    // 更新时间戳并执行回调
+    this._previousFrameTimestamp = timestamp
+    this._fn({ delta, timestamp } as UseRafFnCallbackArguments)
+
+    // 单次模式处理
+    if (this._options.once ?? false) {
+      this._isActive.value = false
+      this._rafId = null
+      return
+    }
+
+    // 递归下一帧
+    this._rafId = requestAnimationFrame((t: number) => this._loop(t))
+  }
+
+  /**
+   * 恢复执行
+   */
+  resume() {
+    if (!this._isActive.value) {
+      this._isActive.value = true
+      this._previousFrameTimestamp = 0
+      this._rafId = requestAnimationFrame((t: number) => this._loop(t))
+    }
+  }
+
+  /**
+   * 暂停执行
+   */
+  pause() {
+    this._isActive.value = false
+    if (this._rafId != null) {
+      cancelAnimationFrame(this._rafId as number)
+      this._rafId = null
+    }
+  }
+}

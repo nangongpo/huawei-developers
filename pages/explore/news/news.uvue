@@ -2,7 +2,7 @@
 	import logo from '@/static/logo.png'
 	import { ItemType } from './type.uts'
 	import { scrollData } from './mock.uts'
-	
+
 	const props= defineProps<{
 		isActive: boolean // 激活页面
 	}>()
@@ -10,8 +10,6 @@
 		(e: 'disable-outer-swiper'): void
 		(e: 'enable-outer-swiper'): void
 	}>()
-	const pageWidth = inject('windowWidth') as Ref<number>
-	const textWidth = computed(() => pageWidth.value > 0 ? pageWidth.value - 125 : 0)
 
 	// 激活页面时播放
 	const autoplay = computed(() => props.isActive)
@@ -32,12 +30,12 @@
 			return 0
 		}
 	})
-	
+
 	function onRefresherpulling(e : UniRefresherEvent) {
 		pullingDistance.value = e.detail.dy
 		// triggered.value = true
 	}
-	
+
 	function onRefresherrefresh() {
 		refresherTriggered.value = true
 		setTimeout(() => {
@@ -45,12 +43,12 @@
 			resetting.value = true
 		}, 1500)
 	}
-	
+
 	function onRefreshrestore() {
 		pullingDistance.value = 0
 		resetting.value = false
 	}
-	
+
 	function navigateTo(item: ItemType) {
 		console.log(item)
 		uni.navigateTo({
@@ -60,7 +58,7 @@
 </script>
 
 <template>
-	<scroll-view :show-scrollbar="false" :refresher-enabled="true" :refresher-triggered="refresherTriggered"
+	<scroll-view enable-back-to-top="true" :show-scrollbar="false" :refresher-enabled="true" :refresher-triggered="refresherTriggered"
       refresher-default-style="none" @refresherpulling="onRefresherpulling" @refresherrefresh="onRefresherrefresh"
       @refresherrestore="onRefreshrestore" :refresher-max-drag-distance="200" style="flex:1">
 		<!-- 轮播图 -->
@@ -98,7 +96,7 @@
 				</navigator>
 			</view>
 			<list-view :show-scrollbar="false">
-				<list-item 
+				<list-item
 					v-for="item in scrollData"
 					:key="item.id"
 					:type="item.id"
@@ -108,7 +106,7 @@
 					<image v-else class="list-item-icon" :src="logo"></image>
 					<view class="list-item-right flex-col flex-1">
 						<view class="list-item-title-wrapper">
-							<text ellipsis :lines="2" size="16px">{{ item.title }}</text>
+							<base-text ellipsis :lines="2" size="16px">{{ item.title }}</base-text>
 						</view>
 						<view class="list-item-seperator"></view>
 					</view>
@@ -126,6 +124,19 @@
 	$list-content-x-gutter: 15px;
 	$list-content-y-gutter: 20px;
 
+  .ellipsis-2 {
+    text-overflow: ellipsis;
+    // #ifndef APP
+    flex-shrink: unset;
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-line-clamp: 2;
+    line-break: anywhere;
+    -webkit-box-orient: vertical;
+    // #endif
+  }
+
 	.swiper {
 		height: 168px;
 	}
@@ -140,34 +151,34 @@
 		line-height: 168px;
 		color: #ffffff;
 	}
-	
+
 	.swiper :deep(.uni-swiper-dot) {
 		width: 4px;
 		height: 4px;
 		border-radius: 4px;
 		margin-right: 4px;
 	}
-	
+
 	.list-container {
 		margin-bottom: 25px;
 	}
-	
+
 	.list-title {
 		padding-top: 30px;
 		padding-bottom: 20px;
 	}
-	
+
 	.list-item {
 		position: relative;
 	}
-	
+
 	.list-item-icon {
 		width: $list-icon-size;
 		height: $list-icon-size;
 		border-radius: $uni-border-radius-xl;
 		margin: $list-content-y-gutter $list-content-x-gutter $list-content-y-gutter 0;
 	}
-	
+
 	.list-item-right {
 		position: relative;
 	}
@@ -176,14 +187,14 @@
 		padding-top: $list-content-y-gutter;
 		padding-right: $list-content-x-gutter;
 	}
-	
+
 	.list-item-title {
 		height: 40px;
 		white-space: nowrap;
 		text-overflow: ellipsis;
 		overflow: hidden;
 	}
-	
+
 	.list-item-seperator {
 		position: absolute;
 		top: 0;

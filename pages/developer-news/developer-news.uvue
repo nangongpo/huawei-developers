@@ -1,11 +1,9 @@
 <script setup lang="uts">
-	
+
 </script>
 
 <template>
-	<!-- 状态栏占位 -->
-	<view class="status-bar"></view>
-	<common-back-navbar title="开发者资讯" class="uni-padding-wrap"></common-back-navbar>
+  <uni-navbar-lite status-bar back-icon="left-arrow" title="开发者咨讯" title-class="uni-common-pl" is-left class="uni-padding-wrap"></uni-navbar-lite>
 
 	<scroll-view style="flex:1">
 		<view class="uni-padding-wrap">
