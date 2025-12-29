@@ -6,7 +6,6 @@
 
   import { state, setShowTabBar, setMatchLeftWindow, setActive, setLeftWinActive } from '@/store/index.uts'
 
-
   let isMobileObserver: MediaQueryObserver | null = null
   const tabbarList = ['explore', 'forum', 'manage', 'my']
   const isPC = ref(false)
@@ -18,8 +17,11 @@
   watch(isPC, (matched: boolean) => {
     setMatchLeftWindow(matched)
     setShowTabBar(!matched)
+    const currentPages = getCurrentPages()
+    const currentPage = currentPages[currentPages.length - 1]
+    const currentTab = currentPage.route.split('/').pop()
     // is tabbar page
-    if (tabbarList.includes(active.value)) {
+    if (tabbarList.includes(currentTab)) {
       !matched ? uni.showTabBar() : uni.hideTabBar()
     }
   }, { immediate: true })

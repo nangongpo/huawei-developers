@@ -54,7 +54,7 @@
         <iconfont v-if="backIcon" :name="backIcon" :class="backClass" :color="textColor" size="24px" hover-class="none" />
       </view>
       <view class="uni-navbar-content" :class="[{ 'is-left': isLeft }, titleClass]">
-        <text :style="{ color: textColor }">
+        <text class="uni-navbar-text" :style="{ color: textColor }">
           <slot>{{ navbarTitle }}</slot>
         </text>
       </view>
@@ -73,6 +73,7 @@
   .uni-navbar-inner {
     flex-direction: row;
     justify-content: space-between;
+    flex-wrap: nowrap;
     height: $uni-navbar-height;
   }
 
@@ -83,10 +84,17 @@
   }
 
   .uni-navbar-content {
-    flex-grow: 1;
+    flex: 1;
     flex-direction: row;
     justify-content: center;
     align-items: center;
+  }
+
+  .uni-navbar-text {
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .is-left {

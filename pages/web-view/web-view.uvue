@@ -12,51 +12,51 @@
 	const verticalScrollBarAccess = ref(true)
 	const bounces = ref(true)
 	const disableUserSelectMenu = ref(false)
-	
+
 	onLoad((event) => {
 		src.value = event.url ?? ''
 		title.value = event.title ?? ''
 	})
-	
+
 	function message(event : UniWebViewMessageEvent) {
 		console.log(JSON.stringify(event.detail))
 	}
-	
+
 	function error(event : UniWebViewErrorEvent) {
 		console.log(event)
 	}
-	
+
 	function loading(event : UniWebViewLoadingEvent) {
 		console.log(JSON.stringify(event.detail))
 	}
-	
+
 	function load(event : UniWebViewLoadEvent) {
 		console.log(JSON.stringify(event.detail))
 		showLoading.value = false
 	}
-	
+
 	function download(event : UniWebViewDownloadEvent) {
 		console.log(JSON.stringify(event.detail))
 	}
-	
+
 	function contentheightchange(event : UniWebViewContentHeightChangeEvent) {
 		console.log(JSON.stringify(event.detail))
 	}
-	
+
 	function touchstart(event : UniTouchEvent) {
 		console.log(JSON.stringify(event))
 	}
-	
+
 	function tap(event : UniPointerEvent) {
 		console.log(JSON.stringify(event))
 	}
-	
+
 	// 跳转页面
 	function navigateTo(url: string) {
 		showAction.value = false
 		uni.navigateTo({ url })
 	}
-	
+
 	// 复制页面地址
 	function copyLink() {
 		uni.setClipboardData({
@@ -70,13 +70,11 @@
 </script>
 
 <template>
-	<!-- 状态栏占位 -->
-	<view class="status-bar"></view>
-	<common-back-navbar :title="title" class="uni-padding-wrap">
-		<template #right>
-			<iconfont name="ellipsis-vertical" size="24px" hover-class="none" @click="showAction = true"></iconfont>
-		</template>
-	</common-back-navbar>
+  <uni-navbar-lite status-bar back-icon="left-arrow" back-class="uni-common-mr" is-left :title="title" class="uni-padding-wrap">
+    <template #right>
+    	<iconfont name="ellipsis-vertical" size="24px" hover-class="none" @click="showAction = true"></iconfont>
+    </template>
+  </uni-navbar-lite>
 	<view v-show="showLoading" class="loading-container flex-1">
 		<view class="loading-content">
 			<image class="loading-icon" :src="loadingGif" mode="widthFix"></image>

@@ -1,16 +1,14 @@
 <script setup lang="uts">
-		
+
 </script>
 
 <template>
-	<!-- 状态栏占位 -->
-	<view class="status-bar"></view>
-	<common-back-navbar title="举报" class="uni-padding-wrap" />
+  <uni-navbar-lite status-bar back-icon="left-arrow" back-class="uni-common-mr" is-left title="举报" class="uni-padding-wrap"></uni-navbar-lite>
 	<scroll-view class="flex-1">
-
+  举报内容
 	</scroll-view>
 </template>
 
 <style>
-		
+
 </style>

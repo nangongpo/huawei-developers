@@ -24,13 +24,11 @@
 
 <template>
   <view class="flex-1">
-    <!-- 状态栏占位 -->
-    <view class="status-bar"></view>
-    <common-back-navbar :title="title" class="uni-padding-wrap">
-    	<template #right>
-    		<iconfont name="ellipsis-vertical" size="24px" hover-class="none" @click="showAction = true"></iconfont>
-    	</template>
-    </common-back-navbar>
+    <uni-navbar-lite status-bar back-icon="left-arrow" :title="title" class="uni-padding-wrap">
+      <template #right>
+      	<iconfont name="ellipsis-vertical" size="24px" hover-class="none" @click="showAction = true"></iconfont>
+      </template>
+    </uni-navbar-lite>
     <rice-action-sheet v-model:show="showAction" :actions="actions" :show-cancel="false" @select="onSelect" />
     <scroll-view style="flex:1">
       <view class="uni-padding-wrap">

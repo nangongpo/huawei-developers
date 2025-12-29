@@ -21,13 +21,13 @@ export type UseDebounceFnOptions = {
  * // 1. 无参数, 接收 Event
  * const debounceFn = useDebounceFn((args : any[]) => {
  * const event = args[0] as UniPointerEvent
- *  console.log('触发节流', event)
+ *  console.log('触发防抖', event)
  * }, 1000)
  * <text @click="debounceFn">debounceFn</text>
  * // 2. 传递参数, 接收自定义参数
  * const debounceFn = useDebounceFn((args : any[]) => {
  * const str = args[0] as string
- *  console.log('触发节流', str)
+ *  console.log('触发防抖', str)
  * }, 1000)
  * <text @click="debounceFn('成功回调')">debounceFn</text>
  * ```

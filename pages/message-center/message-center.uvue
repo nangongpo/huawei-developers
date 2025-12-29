@@ -5,9 +5,7 @@
 </script>
 
 <template>
-	<!-- 状态栏占位 -->
-	<view class="status-bar"></view>
-	<common-back-navbar title="消息中心" class="uni-padding-wrap"></common-back-navbar>
+  <uni-navbar-lite status-bar back-icon="left-arrow" back-class="uni-common-mr" is-left title="消息中心" class="uni-padding-wrap"></uni-navbar-lite>
 	<view class="uni-padding-wrap">
 		<!-- tabs 我的消息 系统消息 互动中心 -->
 		<view></view>
