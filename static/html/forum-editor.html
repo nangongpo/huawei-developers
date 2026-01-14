@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <title>Forum Editor</title>
+    <link href="quill@2.0.3/quill.snow.css" rel="stylesheet" />
+    <style>
+      html, body {
+        height: 100%;
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        overflow-x: hidden;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .quill-focus {
+        overflow-y: auto;
+      }
+
+     .quill-focus #editor-container {
+        /* height: calc(100% - 40px); */
+        height: 100%;
+      }
+
+      .uni-padding-wrap {
+      	padding: 0 15px;
+      }
+
+      .horizontal-divider {
+      	border-bottom: 1px solid #c8c7cc;
+      	transform: scaleY(.5);
+      }
+
+      .input-title {
+        width: 100%;
+        height: 40px;
+        border: 0;
+        outline: 0;
+        font-size: 18px;
+        caret-color: #007aff;
+        transition: margin-top 0.3s ease;
+        flex-shrink: 0;
+      }
+
+      #editor-container {
+        height: calc(100% - 80px);
+        display: none;
+      }
+
+      .ql-editor {
+        caret-color: #007aff;
+      }
+
+      /* 占位符样式 */
+      .ql-editor.ql-blank::before {
+        font-style: normal;
+        font-size: 16px;
+      }
+
+      .ql-container.ql-snow {
+        border: none;
+        font-size: 16px !important;
+        line-height: 1.4;
+      }
+
+      .ql-container.ql-snow ol {
+        padding-left: 0;
+      }
+
+      .ql-toolbar.ql-snow {
+        border: none;
+        background: #F0F0F0;
+      }
+
+      .ql-snow .ql-color-picker .ql-picker-item {
+        border: none;
+      }
+
+      .ql-color-picker.ql-expanded {
+        position: static;
+      }
+
+      #toolbar-container {
+        position: sticky;
+        bottom: 0;
+        z-index: 100;
+        width: 100%;
+      }
+
+      /* 颜色选择器容器：向上弹出并强制不换行 */
+      #toolbar-container .ql-color-picker.ql-expanded .ql-picker-options {
+        top: auto !important;
+        bottom: 40px !important;
+        left: 0 !important;
+        right: 0 !important;
+        padding: 8px !important;
+        margin-bottom: 8px;
+        display: flex !important;
+        justify-content: space-around;
+        white-space: nowrap;
+        align-items: center;
+        border: none;
+        box-shadow: none;
+        background: #F0F0F0;
+      }
+
+      #toolbar-container .ql-color .ql-picker-item {
+        width: 20px;
+        height: 20px;
+        margin: 0 4px;
+        flex-shrink: 0;
+        border: none;
+        border-radius: 4px;
+      }
+
+      .ql-color-picker .ql-picker-item.ql-selected {
+        position: relative;
+      }
+
+      .ql-color-picker .ql-picker-item.ql-selected::after {
+        content: '';
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        width: 12px;
+        height: 7px;
+        border-left: 2px solid #ffffff !important;
+        border-bottom: 2px solid #ffffff !important;
+
+        /* 旋转成勾的形状 */
+        transform: translate(-50%, -50%) rotate(-45deg);
+        /* pointer-events: none; */
+      }
+
+      @media screen and (max-width: 600px) {
+        #toolbar-container .button-group {
+          display: flex;
+          justify-content: space-around;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <input id="input-title" placeholder="请输入帖子标题" class="input-title uni-padding-wrap" />
+    <div class="horizontal-divider"></div>
+    <div id="editor-container">
+      <div id="editor"></div>
+      <div id="toolbar-container">
+        <div class="button-group uni-padding-wrap">
+          <button class="ql-image"></button>
+          <button class="ql-bold"></button>
+          <button class="ql-italic"></button>
+          <button class="ql-underline"></button>
+          <select class="ql-color">
+            <option value="#000000" selected></option>
+            <option value="#646464"></option>
+            <option value="#878787"></option>
+            <option value="#2E3AE4"></option>
+            <option value="#1397EB"></option>
+            <option value="#3EC637"></option>
+            <option value="#F60E23"></option>
+            <option value="#FB5E07"></option>
+            <option value="#FEB10A"></option>
+          </select>
+          <button class="ql-list" value="ordered"></button>
+        </div>
+      </div>
+    </div>
+
+    <script src="quill@2.0.3/quill.js"></script>
+    <script type="text/javascript" src="uni.webview.1.5.5.js"></script>
+    <script type="text/javascript">
+      const inputTitle = document.querySelector('#input-title')
+      const editorContainer = document.querySelector('#editor-container')
+      const quill = new Quill('#editor', {
+        modules: {
+          toolbar: '#toolbar-container',
+        },
+        placeholder: '请输入帖子内容',
+        theme: 'snow',
+      })
+      quill.on('selection-change', function (range, oldRange, source) {
+        if (range) {
+          toolbarContainer.style.display = 'block'
+          document.body.classList.add('quill-focus')
+          // 编辑器已聚焦, 向上滚动
+          setTimeout(() => {
+            window.scrollTo({
+              top: 40,
+              behavior: 'smooth'
+            })
+          }, 50)
+        } else {
+          document.body.classList.remove('quill-focus')
+          setTimeout(() => {
+            window.scrollTo({
+              top: 0,
+              behavior: 'smooth'
+            })
+          }, 50)
+        }
+      })
+      const toolbarContainer = editorContainer.querySelector('#toolbar-container')
+      inputTitle.addEventListener('focus', (e) => {
+        toolbarContainer.style.display = 'none'
+      })
+      const colorPicker = editorContainer.querySelector('#toolbar-container .ql-color-picker')
+      const pickerLabel = colorPicker.querySelector('.ql-picker-label')
+      const pickerOptions = colorPicker.querySelector('.ql-picker-options')
+      pickerLabel.addEventListener('mousedown', (e) => {
+        if (quill.hasFocus()) {
+          e.preventDefault()
+        }
+      })
+      pickerOptions.addEventListener('click', (e) => {
+        if (e.target.classList.contains('ql-picker-item')) {
+          // 防止 Quill 监听到点击并自动关闭面板
+          e.stopPropagation()
+          e.preventDefault()
+          // 手动触发颜色更改
+          const value = e.target.getAttribute('data-value') || ''
+          quill.format('color', value)
+          // 更新 UI 选中状态（勾选效果）
+          pickerOptions.querySelectorAll('.ql-picker-item').forEach(item => {
+            item.classList.remove('ql-selected')
+          })
+          e.target.classList.add('ql-selected')
+          // 触发编辑器聚焦
+          quill.focus()
+        }
+      }, true)
+
+      editorContainer.style.display = 'block'
+
+      function receiveMessage(event) {
+        console.log('forum-editor message', JSON.parse(event.data))
+      }
+
+      function postMessage(action) {
+        uni.webView.postMessage({
+          data: {
+            action
+          }
+        })
+      }
+    </script>
+  </body>
+</html>

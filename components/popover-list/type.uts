@@ -1,0 +1,18 @@
+export type PopoverOption = {
+  text : string | number
+  value : string | number
+  disabled ?: boolean
+}
+
+export type PopoverListProps = {
+  options : PopoverOption[]
+  value ?: number
+  width: number
+  maxHeight ?: number
+  lines: number // 选项
+}
+
+export type PopoverStyle = {
+  transform : string
+  width : string
+}

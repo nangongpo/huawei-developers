@@ -6,6 +6,34 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "46164199",
+      "name": "chevron-right",
+      "font_class": "chevron-right",
+      "unicode": "e605",
+      "unicode_decimal": 58885
+    },
+    {
+      "icon_id": "46164200",
+      "name": "chevron-down",
+      "font_class": "chevron-down",
+      "unicode": "e606",
+      "unicode_decimal": 58886
+    },
+    {
+      "icon_id": "46164209",
+      "name": "chevron-left",
+      "font_class": "chevron-left",
+      "unicode": "e607",
+      "unicode_decimal": 58887
+    },
+    {
+      "icon_id": "46164221",
+      "name": "chevron-up",
+      "font_class": "chevron-up",
+      "unicode": "e608",
+      "unicode_decimal": 58888
+    },
+    {
       "icon_id": "12898938",
       "name": "plus",
       "font_class": "plus",

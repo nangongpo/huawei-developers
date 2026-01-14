@@ -83,11 +83,10 @@
 
 <style lang="scss">
   /*每个页面公共css */
-	@import "./common/uno.scss";
-  @import "./common/uni.css";
-
 	@import "@/uni_modules/rice-ui/libs/style/index.css";
   @import "./common/theme.css";
+  @import "./common/uno.scss";
+  @import "./common/uni.css";
 
   /* #ifdef WEB */
   .uni-top-window uni-tabbar .uni-tabbar {

@@ -30,6 +30,10 @@ uni-app.uni-app--showtabbar uni-page-body::after {
 	background-color: #e7e7e7;
 }
 
+.safe-area-inset-bottom {
+  height: var(--uni-safe-area-inset-bottom);
+}
+
 /* 通用两侧间距 */
 .uni-padding-wrap {
 	padding: 0 15px;

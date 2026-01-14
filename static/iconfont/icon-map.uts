@@ -1,11 +1,15 @@
 
 /**
  * ⚠️ 警告：此文件是根据 iconfont.json 自动生成的，请勿手动修改！
- * 生成时间: 2025/12/18 10:14:58
+ * 生成时间: 2025/12/31 16:13:11
  * Unicode 值类型: 十进制数字
  */
 
 const iconMap = {
+  "icon-chevron-right": 58885,
+  "icon-chevron-down": 58886,
+  "icon-chevron-left": 58887,
+  "icon-chevron-up": 58888,
   "icon-plus": 59005,
   "icon-delete": 59211,
   "icon-report": 59673,

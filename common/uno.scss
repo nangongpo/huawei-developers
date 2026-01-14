@@ -14,7 +14,7 @@
 .horizontal-divider {
 	border-bottom: 1px solid $uni-border-color;
 	transform: scaleY(.5);
-	margin: $uni-spacing-col-lg 0;
+	margin: $uni-spacing-col-base 0;
 }
 
 .tag-sm {
@@ -148,6 +148,10 @@
 	background: #F0F0F0;
 }
 
+.bg-white {
+  background: #ffffff;
+}
+
 .relative {
   position: relative;
 }
@@ -237,12 +241,21 @@
 	flex-shrink: 1;
 }
 
+.mr-6px {
+	margin-right: 6px;
+}
+
 .mb-4px {
   margin-bottom: 4px;
 }
 
-.mr-6px {
-	margin-right: 6px;
+.mb-8px {
+  margin-bottom: 8px;
+}
+
+.my-5px {
+	margin-top: 5px;
+	margin-bottom: 5px;
 }
 
 .my-12px {
@@ -267,6 +280,10 @@
 	margin-bottom: 12px;
 }
 
+.mt-8px {
+	margin-top: 8px;
+}
+
 .mt-12px {
 	margin-top: 12px;
 }
@@ -281,6 +298,10 @@
 
 .mb-20px {
   margin-bottom: 20px;
+}
+
+.pt-8px {
+  padding-top: 8px;
 }
 
 .pt-20px {

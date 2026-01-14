@@ -7,6 +7,7 @@ export type Props = {
 	backIcon: string
 	backText: string
 	backClass: string
+  backFn?: () => void
 	isLeft: boolean
 	textColor: FrontColor
 	bgColor: string

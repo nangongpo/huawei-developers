@@ -1,82 +1,63 @@
+<script setup lang="uts">
+  import { state } from '@/store/index.uts'
+
+  type IndexPageItem = {
+    tabBar : string.PageURIString;
+    indexPageUrl : string.PageURIString;
+  }
+
+  const selected = {
+    explore: 0,
+    forum: 1,
+    manage: 2,
+    my: 3
+  }
+  const indexPage: IndexPageItem[] = [
+    {
+      tabBar: '/pages/tab-bar/explore',
+      indexPageUrl: '/pages/tab-bar/explore'
+    },
+    {
+      tabBar: '/pages/tab-bar/forum',
+      indexPageUrl: '/pages/tab-bar/forum'
+    },
+    {
+      tabBar: '/pages/tab-bar/manage',
+      indexPageUrl: '/pages/tab-bar/manage'
+    },
+    {
+      tabBar: '/pages/tab-bar/my',
+      indexPageUrl: '/pages/tab-bar/my'
+    },
+  ]
+
+  const hideTopWindow = computed(() => {
+    return state.showTabBar
+  })
+
+  function toSecondMenu(e : OnTabItemTapOption) {
+    const activeTabBar = '/' + e.pagePath
+    for (const item of indexPage) {
+      if (activeTabBar === item.tabBar) {
+        uni.switchTab({
+          url: item.indexPageUrl
+        })
+      }
+    }
+  }
+</script>
+
 <template>
-  <view v-show="!hideTopWindow" class="top-window-header" :class="isDarkMode ? 'theme-dark' : 'theme-light'">
+  <view v-show="!hideTopWindow" class="top-window-header">
     <view class="left-header">
       <navigator class="left-header" open-type="reLaunch" url="/pages/tab-bar/explore">
         <image src="/static/uni.png" class="logo" mode="heightFix"></image>
         <text>{{ 'developers'.toUpperCase() }}</text>
       </navigator>
     </view>
-    <custom-tab-bar class="tab-bar-flex" direction="horizontal" :show-icon="false" :selected="current"
-      @onTabItemTap="toSecondMenu" />
+    <custom-tab-bar class="tab-bar-flex" direction="horizontal" :show-icon="false" @onTabItemTap="toSecondMenu" />
   </view>
 </template>
-
-<script lang="uts">
-  type IndexPageItem = {
-    tabBar : string.PageURIString;
-    indexPageUrl : string.PageURIString;
-  }
-  import { state } from '@/store/index.uts'
-  export default {
-    data() {
-      return {
-        hideTopWindow: true,
-        selected: {
-          explore: 0,
-          forum: 1,
-          manage: 2,
-          my: 3
-        },
-        current: 0,
-        indexPage: [{
-          tabBar: '/pages/tab-bar/explore',
-          indexPageUrl: '/pages/tab-bar/explore'
-        }, {
-          tabBar: '/pages/tab-bar/forum',
-          indexPageUrl: '/pages/tab-bar/forum'
-        }, {
-          tabBar: '/pages/tab-bar/manage',
-          indexPageUrl: '/pages/tab-bar/manage'
-        }, {
-          tabBar: '/pages/tab-bar/my',
-          indexPageUrl: '/pages/tab-bar/my'
-        }] as IndexPageItem[]
-      }
-    },
-    computed: {
-      isDarkMode() : boolean {
-        return state.isDarkMode
-      }
-    },
-    watch: {
-      $route: {
-        immediate: true,
-        handler(newRoute) {
-          this.hideTopWindow = newRoute.path == '/' || newRoute.path == '/pages/splash/splash'
-          const width = uni.getSystemInfoSync().windowWidth
-          if (width <= 768) {
-            return
-          }
-          const path = newRoute.path
-          const category = path === '/' ? 'explore' : path.split('/')[2]
-          this.current = this.selected[category]
-        }
-      }
-    },
-    methods: {
-      toSecondMenu(e : OnTabItemTapOption) {
-        const activeTabBar = '/' + e.pagePath
-        for (const item of this.indexPage) {
-          if (activeTabBar === item.tabBar) {
-            uni.switchTab({
-              url: item.indexPageUrl
-            })
-          }
-        }
-      }
-    }
-  }
-</script>
 
 <style>
   .top-window-header {
@@ -106,5 +87,4 @@
   .tab-bar-flex {
     width: 360px;
   }
-
 </style>

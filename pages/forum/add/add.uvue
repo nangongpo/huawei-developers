@@ -1,20 +1,116 @@
 <script setup lang="uts">
-  const sectionID = ref<number|null>(null)
+  import { PostSectionItem, PostCategoryItem } from '../forum.type.uts'
+  import { postSectionData, postCategoryData } from '../forum.mock.uts'
+  import { PopoverOption } from '@/components/popover-list/type.uts'
+  import { useDebounceFn } from '@/composables/index.uts'
 
-  onLoad((options) => {
-    console.log(options)
+  let keyboardEventID: number | null = null
+  let webResizeHandler: ((p: any) => void) | null = null
+  let forumEditorElement: UniWebViewElement | null = null
+
+  const keyboardHeight = ref(0)
+  const showLoading = ref(false)
+
+  const postSectionOptions = computed((): PopoverOption[] => {
+    return postSectionData
+      .filter(v => v.name !== '推荐')
+      .map((v: PostSectionItem) => {
+        return { text: v.name, value: v.id } as PopoverOption
+      })
+  })
+  const postCategoryOptions = computed((): PopoverOption[] => {
+    return postCategoryData.map(v => {
+      return { text: v.name, value: v.id } as PopoverOption
+    })
+  })
+  const postSection = shallowRef<PopoverOption | null>(null)
+  const postCategory = shallowRef<PopoverOption | null>(null)
+
+  const setPostSection = (index: number) => {
+    postSection.value = postSectionOptions.value[index]
+  }
+
+  const setPostCategory = (index: number) => {
+    postCategory.value = postCategoryOptions.value[index]
+  }
+
+  function handleEditorMessage(event: UniWebViewMessageEvent) {
+    console.log('editor message', event)
+  }
+
+  function handleEditorError(event: UniWebViewErrorEvent) {
+    console.log('editor error', event)
+  }
+
+  function handleEditorLoaded(event: UniWebViewLoadEvent) {
+    console.log('editor loaded', event)
+  }
+
+  function nextStep() {
+    console.log('下一步')
+  }
+
+  function handleKeyboardHeightChange(height: number) {
+    keyboardHeight.value = height
+  }
+
+  onLoad(() => {
+    // 获取webview
+    forumEditorElement = uni.getElementById('forum-editor') as UniWebViewElement | null
+    // 监听键盘高度变化
+    // #ifndef WEB
+    keyboardEventID = uni.onKeyboardHeightChange((res: OnKeyboardHeightChangeCallbackResult) => {
+      handleKeyboardHeightChange(res.height)
+    })
+    // #endif
+  })
+
+  onUnload(() => {
+    forumEditorElement = null
+    // 页面卸载时移除监听键盘高度变化
+    // #ifndef WEB
+    // 页面卸载时移除监听
+    uni.offKeyboardHeightChange(keyboardEventID)
+    // #endif
   })
 </script>
 
 <template>
   <uni-navbar-lite status-bar back-text="取消" back-class="text-2xl" class="uni-padding-wrap">
     <template #right>
-      <text class="text-primary">下一步</text>
+      <text class="text-primary" @click="nextStep">下一步</text>
     </template>
   </uni-navbar-lite>
-	<view class="uni-padding-wrap">
-		帖子板块
-    帖子分类
+	<view class="bg-grey flex-1">
+    <view class="bg-white uni-padding-wrap mb-8px">
+      <view class="flex-row items-center justify-between my-5px">
+        <text class="text-base">帖子板块</text>
+        <popover-list :width="180" range-key="name" :options="postSectionOptions" @change="setPostSection">
+          <view class="flex-row items-center justify-end">
+            <text v-if="postSection?.value == null" class="text-base text-placeholder">请选择</text>
+            <text v-else class="text-base text-nowrap">{{ postSection?.text }}</text>
+            <iconfont name="chevron-right" icon-class="text-placeholder"></iconfont>
+          </view>
+        </popover-list>
+      </view>
+      <view class="flex-row items-center justify-between my-5px">
+        <text class="text-base">帖子分类</text>
+        <popover-list :width="180" range-key="name" :options="postCategoryOptions" @change="setPostCategory">
+          <view class="flex-row items-center justify-end">
+            <text v-if="postCategory?.value == null" class="text-base text-placeholder">请选择</text>
+            <text v-else class="text-base text-nowrap">{{ postCategory?.text }}</text>
+            <iconfont name="chevron-right" icon-class="text-placeholder"></iconfont>
+          </view>
+        </popover-list>
+      </view>
+    </view>
+    <!-- 加载web端富文本编辑器 -->
+    <web-view id="forum-editor" class="flex-1 bg-white" src="/static/html/forum-editor.html" :webview-styles="{ progress: false }" :horizontalScrollBarAccess="false" :verticalScrollBarAccess="false" :bounces="false" :disable-user-select-menu="true" @message="handleEditorMessage" @error="handleEditorError" @load="handleEditorLoaded">
+    </web-view>
+    <view v-if="keyboardHeight > 0" :style="{ height: keyboardHeight + 'px' }"></view>
+    <!-- #ifdef APP-ANDROID || APP-IOS -->
+    <view class="safe-area-inset-bottom"></view>
+    <!-- #endif -->
 	</view>
 </template>
 

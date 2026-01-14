@@ -3,6 +3,8 @@
 	import iconMap from '@/static/iconfont/icon-map.uts'
 
 	const props = withDefaults(defineProps<Props>(), {
+    name: '',
+    color: '',
 		size: '16px',
 		dot: false,
 		hoverClass: 'icon-hover-bg',
@@ -17,6 +19,16 @@
 			borderRadius: size
 		}
 	})
+
+  const iconStyle = computed(() => {
+    const _style = {
+      'font-size': props.size
+    }
+    if (props.color != '') {
+      _style['color'] = props.color
+    }
+    return _style
+  })
 
 	function handleTap() {
 		if (props.url == null) return
@@ -40,7 +52,7 @@
 		:hover-class="hoverClass"
 		:style="iconComponentStyle"
 		@tap="handleTap">
-		<text class="iconfont" :class="iconClass" :style="{ 'font-size': size, color }">
+		<text class="iconfont" :class="iconClass" :style="iconStyle">
 			{{ getIconUnicode(name) }}
 		</text>
 		<text v-show="dot" class="iconfont-component__dot"></text>

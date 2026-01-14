@@ -1,0 +1,204 @@
+<script setup lang="uts">
+  import { PopoverOption, PopoverListProps, PopoverStyle } from './type.uts'
+
+  const props = withDefaults(defineProps<PopoverListProps>(), {
+    options: () => [] as PopoverOption[],
+    value: -1,
+    width: 0,
+    maxHeight: 200,
+    lines: 1
+  })
+
+  const emit = defineEmits(['change'])
+
+  const visible = ref(false)
+  const popoverStyle = ref<PopoverStyle>({
+    transform: 'translate(0, 0)',
+    width: `${props.width}px`
+  })
+  const selectedIndex = ref(-1)
+  const instance = getCurrentInstance()
+
+  let listenerId : number = 0
+
+  function close() {
+    visible.value = false
+    // 如果存在有效的监听器 ID，则通过 ID 取消监听
+    if (listenerId > 0) {
+      uni.$off('page-click', listenerId)
+      listenerId = 0
+    }
+  }
+
+  function calculatePosition(rect : NodeInfo) {
+    const sys = uni.getWindowInfo()
+    const screenWidth = sys.windowWidth
+    const screenHeight = sys.windowHeight
+
+    // 确定宽度：如果传入了 width 则用传入的，否则用触发器的宽度
+    const triggerWidth = rect.width ?? 0
+    const finalWidth = props.width > 0 ? props.width : triggerWidth
+
+    // 获取基础坐标
+    const triggerLeft = rect.left ?? 0
+    const triggerTop = rect.top ?? 0
+    const triggerRight = rect.right ?? (triggerLeft + triggerWidth)
+    const triggerBottom = rect.bottom ?? (triggerTop + (rect.height ?? 0))
+
+    // 横向计算 (默认右对齐)
+    let targetX = triggerRight - finalWidth
+
+    // 左侧溢出检查
+    if (targetX < 10) {
+      targetX = 10
+    }
+    // 右侧溢出检查
+    if (targetX + finalWidth > screenWidth - 10) {
+      targetX = screenWidth - finalWidth - 10
+    }
+
+    // 纵向计算 (默认正下方)
+    let targetY = triggerBottom + 5
+
+    // 下方溢出检查：如果下方放不下且上方空间更大，则向上弹出
+    if (targetY + props.maxHeight > screenHeight - 10) {
+      const spaceAbove = triggerTop - 10
+      if (spaceAbove > props.maxHeight) {
+        targetY = triggerTop - props.maxHeight - 5
+      }
+    }
+
+    popoverStyle.value = {
+      transform: `translate(${Math.floor(targetX)}px, ${Math.floor(targetY)}px)`,
+      width: `${finalWidth}px`
+    } as PopoverStyle
+  }
+
+  function handleClick(e : MouseEvent) {
+    e.stopPropagation()
+
+    if (visible.value) {
+      close()
+      return
+    }
+
+    const query = uni.createSelectorQuery().in(instance?.proxy)
+    query.select('.popover-trigger').boundingClientRect((res : any) => {
+      const data = res as NodeInfo | null
+      if (data != null) {
+        calculatePosition(data)
+        visible.value = true
+        // 开启监听
+        nextTick(() => {
+          // 在 UTS 中，uni.$once 返回监听器 ID (number)
+          listenerId = uni.$once('page-click', (_ : any) => {
+            close()
+          })
+        })
+      }
+    }).exec()
+  }
+
+  function onSelect(index : number) {
+    selectedIndex.value = index
+    emit('change', index)
+    close()
+  }
+
+  watch((): number => props.value, (newVal: number) => {
+    selectedIndex.value = newVal
+  }, { immediate: true })
+
+  onUnmounted(() => {
+    // 组件销毁时确保清理
+    if (listenerId > 0) {
+      uni.$off('page-click', listenerId)
+    }
+  })
+</script>
+
+<template>
+  <view class="popover-container">
+    <view class="popover-trigger" @click="handleClick">
+      <slot></slot>
+    </view>
+
+    <view v-if="visible" class="popover-mask" @click.stop="close"></view>
+
+    <view v-if="visible" class="popover-content" :style="{ width: popoverStyle.width, transform: popoverStyle.transform }" @click.stop>
+      <scroll-view class="scroll-area" scroll-y="true" :style="{'max-height': props.maxHeight + 'px'}">
+        <view v-for="(item, index) in props.options" :key="index" class="list-item"
+          :class="{'active': index === selectedIndex}" @click="onSelect(index)">
+          <text class="item-text" :class="{'active-text': index === selectedIndex}" :style="{ lines }">
+            {{ item?.text }}
+          </text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</template>
+
+<style scoped>
+  .popover-container {
+    position: relative;
+  }
+
+  .popover-trigger {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  /* 透明遮罩层 */
+  .popover-mask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    background-color: rgba(0, 0, 0, 0);
+  }
+
+  .popover-content {
+    position: fixed;
+    left: 0px;
+    top: 0px;
+    background-color: #ffffff;
+    border-radius: 6px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid #ebeef5;
+    z-index: 1000;
+    overflow: hidden;
+  }
+
+  .scroll-area {
+    width: 100%;
+  }
+
+  .list-item {
+    padding: 12px 15px;
+    border-bottom: 0.5px solid #f5f5f5;
+  }
+
+  .active {
+    background-color: #f0f7ff;
+  }
+
+  .item-text {
+    font-size: 14px;
+    color: #333;
+    text-overflow: ellipsis;
+    /* #ifndef APP */
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: v-bind(lines);
+    line-break: anywhere;
+    -webkit-box-orient: vertical;
+    /* #endif */
+  }
+
+  .active-text {
+    color: #007aff;
+    font-weight: bold;
+  }
+</style>
