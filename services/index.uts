@@ -1,0 +1,113 @@
+/**
+ * directus服务地址
+ */
+export const BASE_URL = 'http://192.168.110.174:8055'
+
+/**
+ * 从响应数据中提取错误消息
+ * @param data 原始响应数据 (UTSJSONObject)
+ * @param defaultMsg 默认错误提示
+ * @returns 提取到的错误字符串
+ */
+export function getErrorMessage(data: UTSJSONObject | null, defaultMsg: string = '请求失败'): string {
+  if (data == null) return defaultMsg
+  const errors = data.getAny('errors') as Array<UTSJSONObject> | null
+  return errors != null && errors.length > 0
+    ? (errors[0]['message'] as string)
+    : defaultMsg
+}
+
+
+/**
+ * 根据文件 ID 生成完整链接
+ */
+export function getFileUrl(fileId : string): string {
+  return `${BASE_URL}/assets/${fileId}`
+}
+
+/**
+ * 根据文件地址filePath上传文件
+ */
+export function uploadFile(filePath : string) : Promise<UTSJSONObject> {
+  return new Promise<UTSJSONObject>((resolve, reject) => {
+    uni.uploadFile({
+      url: `${BASE_URL}/files`,
+      filePath,
+      name: 'file',
+      success: (res : UploadFileSuccess) => {
+        console.log('uploadImage success, res is:', res)
+
+        // 尝试解析响应体
+        let result: UTSJSONObject
+        try {
+          result = JSON.parse(res.data) as UTSJSONObject
+        } catch (e) {
+          reject(new Error("服务器响应格式异常", { cause: e }))
+          return
+        }
+
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          const fileData = result['data'] as UTSJSONObject
+          const fileId = fileData['id'] as string
+          fileData['url'] = getFileUrl(fileId)
+          resolve(fileData)
+        } else {
+          const errorMsg = getErrorMessage(result, '上传请求失败')
+          reject(new Error(errorMsg, { cause: result }))
+        }
+      },
+      fail: (err : UploadFileFail) => {
+        reject(new Error("网络连接失败", { cause: err }))
+      }
+    })
+  })
+}
+
+/**
+ * 删除文件
+ * @example
+ * deleteFile(fileId).then((res: boolean) => {
+ *   console.log('res', res)
+ * }).catch((err?: any) => {
+ *    console.log((err as Error).message)
+ * })
+ */
+export function deleteFile(fileId?: string): Promise<boolean> {
+	return new Promise((resolve, reject) => {
+    if (fileId == null) {
+      reject(new Error('文件ID缺失'))
+      return
+    }
+		uni.request({
+			url: `${BASE_URL}/files/${fileId}12`,
+			method: 'DELETE',
+			success: (res: RequestSuccess<any>) => {
+        console.log('deleteFile', res)
+				if (res.statusCode == 204 || res.statusCode == 200) {
+          resolve(true)
+        } else {
+          const result = res.data as UTSJSONObject | null
+          const errorMsg = getErrorMessage(result, '文件删除失败')
+          reject(new Error(errorMsg, { cause: result }))
+        }
+			},
+			fail: (err: RequestFail) => {
+        reject(new Error("网络连接失败", { cause: err }))
+      }
+		})
+	})
+}
+
+/**
+ * 一次上传多个文件
+ */
+export async function uploadFiles(filePaths : string[]): Promise<UTSJSONObject[]> {
+  const uploadPromises = filePaths.map(path => uploadFile(path))
+  try {
+    const results = await Promise.all(uploadPromises);
+    // 返回所有成功上传后的 ID 数组
+    return results
+  } catch (e) {
+    throw e // 其中任何一个失败都会抛出错误
+  }
+}

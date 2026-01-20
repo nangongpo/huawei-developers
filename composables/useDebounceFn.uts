@@ -36,7 +36,7 @@ export function useDebounceFn(
   fn : (args : any[]) => void,
   ms : MaybeRefOrGetter<number> | null = null,
   options : UseDebounceFnOptions | null = null
-) : (p : any | null) => void {
+) : (arg : any | null) => void {
 
   const _ms = ms ?? 200
   const _options = options ?? ({} as UseDebounceFnOptions)

@@ -1,0 +1,7 @@
+let globalCounter = 0
+
+export function useId(): string {
+  // 生成一个简单的唯一标识符
+  // 可以根据需要加上前缀，如 'v-id'
+  return `v-${globalCounter++}`
+}

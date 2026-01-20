@@ -6,7 +6,8 @@
     <title>Forum Editor</title>
     <link href="quill@2.0.3/quill.snow.css" rel="stylesheet" />
     <style>
-      html, body {
+      html,
+      body {
         height: 100%;
         box-sizing: border-box;
       }
@@ -22,18 +23,17 @@
         overflow-y: auto;
       }
 
-     .quill-focus #editor-container {
-        /* height: calc(100% - 40px); */
+      .quill-focus #editor-container {
         height: 100%;
       }
 
       .uni-padding-wrap {
-      	padding: 0 15px;
+        padding: 0 15px;
       }
 
       .horizontal-divider {
-      	border-bottom: 1px solid #c8c7cc;
-      	transform: scaleY(.5);
+        border-bottom: 1px solid #c8c7cc;
+        transform: scaleY(.5);
       }
 
       .input-title {
@@ -173,22 +173,37 @@
     </div>
 
     <script src="quill@2.0.3/quill.js"></script>
+    <script src="quill@2.0.3/quill.utils.js"></script>
     <script type="text/javascript" src="uni.webview.1.5.5.js"></script>
     <script type="text/javascript">
+      const urlParams = new URLSearchParams(window.location.search)
+      const platform = urlParams.get('platform')
+      // todo: inputTitle应该在进入时聚焦
       const inputTitle = document.querySelector('#input-title')
       const editorContainer = document.querySelector('#editor-container')
       const quill = new Quill('#editor', {
         modules: {
-          toolbar: '#toolbar-container',
+          toolbar: {
+            container: '#toolbar-container',
+            handlers: {
+              image: function() {
+                quill.blur()
+                sendMessage('chooseImage')
+              }
+            }
+          }
         },
         placeholder: '请输入帖子内容',
         theme: 'snow',
       })
-      quill.on('selection-change', function (range, oldRange, source) {
+
+      editorContainer.style.display = 'block'
+
+      // 编辑器已聚焦, 向上滚动
+      quill.on('selection-change', function(range, oldRange, source) {
         if (range) {
           toolbarContainer.style.display = 'block'
           document.body.classList.add('quill-focus')
-          // 编辑器已聚焦, 向上滚动
           setTimeout(() => {
             window.scrollTo({
               top: 40,
@@ -230,23 +245,99 @@
             item.classList.remove('ql-selected')
           })
           e.target.classList.add('ql-selected')
-          // 触发编辑器聚焦
-          quill.focus()
+          setTimeout(() => {
+            quill.focus()
+          }, 50)
         }
       }, true)
 
-      editorContainer.style.display = 'block'
+      function sendMessage(action, params) {
+        console.log(action)
+        if (platform === 'app') {
+          uni.webView.postMessage({
+            data: {
+              action,
+              params: params || {}
+            }
+          })
+        } else if (window.parent !== window) {
+          window.parent.postMessage({
+            action,
+            params: params || {}
+          })
+        }
+      }
 
       function receiveMessage(event) {
         console.log('forum-editor message', JSON.parse(event.data))
       }
 
-      function postMessage(action) {
-        uni.webView.postMessage({
-          data: {
-            action
+      // 插入上传占位节点
+      window.insertPlaceholder = function(localPath, localId) {
+        const range = quill.getSelection()
+        const index = range ? range.index : quill.getLength()
+        const [line, offset] = quill.getLine(index)
+        const isLineEmpty = line && (line.children.length === 0 || (line.children.length === 1 && line.children.head.statics.blotName === 'break'))
+        if (isLineEmpty) {
+          // 空行时清空内容
+          const lineStart = quill.getIndex(line)
+          quill.deleteText(lineStart, 1)
+          quill.insertEmbed(lineStart, 'uploadPlaceholder', { localId: localId }, 'user')
+        } else {
+          // 非空行添加换行符
+          quill.insertText(index, '\n', 'user')
+          quill.insertEmbed(index, 'uploadPlaceholder', { localId: localId }, 'user')
+        }
+        setTimeout(() => {
+          quill.focus()
+          quill.setSelection(index + 2, 0)
+          editorContainer.scrollIntoView({
+            behavior: 'smooth'
+          })
+        }, 50)
+      }
+
+      // 成功后替换为真实地址
+      window.replaceImage = function(localId, remoteUrl, fileId) {
+        // 查找占位符所在位置
+        const node = document.querySelector(`div[data-local-id="${localId}"]`)
+
+        if (node) {
+          const blot = Quill.find(node)
+          if (blot) {
+            const index = quill.getIndex(blot)
+            // 删除占位符
+            quill.deleteText(index, 1)
+            // 插入正式图片并携带 file-id
+            quill.insertEmbed(index, 'image', remoteUrl, 'user')
+            quill.formatText(index, 1, 'data-file-id', fileId)
+
+            quill.insertText(index + 1, '\n', 'user')
+
+            // 记录到已上传列表，用于删除
+            if (!window.uploadedFileIds) window.uploadedFileIds = []
+            window.uploadedFileIds.push(fileId)
+
+            setTimeout(() => {
+              quill.focus() // 必须先聚焦
+              quill.setSelection(index + 2, 0)
+            }, 50)
           }
-        })
+        }
+      }
+
+      // 上传失败：标记占位符为错误
+      window.markImageError = function(localId) {
+        const [blot] = quill.scroll.descendants(UploadPlaceholderBlot, { localId: localId });
+        if (blot && blot.domNode) {
+          blot.domNode.style.backgroundColor = '#fff1f0';
+          blot.domNode.style.border = '1px solid #ff4d4f';
+          blot.domNode.style.color = '#ff4d4f';
+          blot.domNode.innerHTML = '<div>上传失败，点击重试或删除</div>'
+          blot.domNode.onclick = () => {
+            // 这里可以触发重试逻辑或 sendMessage('retry', { localId })
+          };
+        }
       }
     </script>
   </body>

@@ -1,0 +1,17 @@
+/**
+ * 最终多端兼容版 ID 生成器
+ * 兼容：Android, iOS, 鸿蒙, Web
+ */
+export function generateID() : string {
+  // 获取当前时间戳
+  const t = Date.now()
+
+  // 生成高性能随机数 (0-999999)
+  const r1 = Math.floor(Math.random() * 899999 + 100000)
+
+  // 再次增加随机因子，确保极高并发下的唯一性
+  const r2 = Math.floor(Math.random() * 899999 + 100000)
+
+  // 使用标准的模板字符串，这在多端编译器中均能正确解析为 native 字符串拼接
+  return "u" + t.toString() + "_" + r1.toString() + "_" + r2.toString()
+}

@@ -1,0 +1,4 @@
+export type EditorActionData = {
+  action: string
+  params: UTSJSONObject
+}

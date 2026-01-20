@@ -2,12 +2,21 @@
   import { PostSectionItem, PostCategoryItem } from '../forum.type.uts'
   import { postSectionData, postCategoryData } from '../forum.mock.uts'
   import { PopoverOption } from '@/components/popover-list/type.uts'
-  import { useDebounceFn } from '@/composables/index.uts'
+  import { EditorActionData } from './editor.type.uts'
+  import { uploadFile, deleteFile } from '@/services/index.uts'
+
 
   let keyboardEventID: number | null = null
-  let webResizeHandler: ((p: any) => void) | null = null
-  let forumEditorElement: UniWebViewElement | null = null
-
+  let forumEditorElement = null as UniWebViewElement | null
+  const generateUUID = () : string => {
+    return "u" + Date.now().toString() + "_" + (Math.random() * 100000).toString();
+  }
+  // #ifdef APP
+  const webviewUrl = '/static/html/forum-editor.html?platform=app'
+  // #endif
+  // #ifndef APP
+  const webviewUrl = '/static/html/forum-editor.html'
+  // #endif
   const keyboardHeight = ref(0)
   const showLoading = ref(false)
 
@@ -34,9 +43,79 @@
     postCategory.value = postCategoryOptions.value[index]
   }
 
-  function handleEditorMessage(event: UniWebViewMessageEvent) {
-    console.log('editor message', event)
+  function handleEditorAction(data: EditorActionData) {
+    const { action } = data
+    if (action == 'chooseImage') {
+      uni.chooseImage({
+        count: 9, // 最多可以选择的图片张数
+        sizeType: ['original', 'compressed'],
+        sourceType: ['album'],
+        success: (res: ChooseImageSuccess) => {
+          res.tempFilePaths.forEach((path: string) => {
+            const currentId: string = generateUUID()
+            // #ifdef WEB
+            (forumEditorElement as any)?.contentWindow?.insertPlaceholder(path, currentId)
+            // #endif
+            // #ifdef APP
+            forumEditorElement?.evalJS(`window.insertPlaceholder('${path}', '${currentId}')`)
+            // #endif
+            uploadFile(path).then((data: UTSJSONObject) => {
+              const remoteUrl = data['url'] as string
+              const fileId = data['id'] as string
+              // 成功：替换图片
+              // #ifdef WEB
+              (forumEditorElement as any)?.contentWindow?.replaceImage(currentId, remoteUrl, fileId)
+              // #endif
+              // #ifdef APP
+              forumEditorElement?.evalJS(`window.replaceImage('${currentId}', '${remoteUrl}', '${fileId}')`)
+              // #endif
+            }).catch((err?: any) => {
+              uni.showModal({
+                title: '上传失败',
+                content: (err as Error).message,
+                showCancel: false
+              })
+            })
+          })
+          // const filePath = res.tempFilePaths[0]
+          // uploadFile(filePath).then((data: UTSJSONObject) => {
+          //   const fileUrl = data.getString('url')
+
+          //   // console.log('forumEditorElement', forumEditorElement)
+          //   if (fileUrl != null) {
+          //     // #ifdef WEB
+          //     (forumEditorElement as any)?.contentWindow?.insertImageToEditor(fileUrl)
+          //     // #endif
+          //     // #ifdef APP
+          //     forumEditorElement?.evalJS(`window.insertImageToEditor("${fileUrl}")`)
+          //     // #endif
+          //   }
+          // })
+        }
+      })
+    }
   }
+
+  function handleEditorMessage(event: UniWebViewMessageEvent) {
+    const data = event.detail.data as UTSJSONObject[]
+    const action = data[0].getString('action')
+    if (action != null) {
+      const editorActionData = {
+        action,
+        params: data[0].getJSON('params') ?? {}
+      } as EditorActionData
+      handleEditorAction(editorActionData)
+    }
+  }
+
+  // #ifdef WEB
+  function handleWebMessage(event: any) {
+    const data = event.data as EditorActionData
+    if (data.action) {
+      handleEditorAction(data)
+    }
+  }
+  // #endif
 
   function handleEditorError(event: UniWebViewErrorEvent) {
     console.log('editor error', event)
@@ -54,11 +133,12 @@
     keyboardHeight.value = height
   }
 
-  onLoad(() => {
-    // 获取webview
-    forumEditorElement = uni.getElementById('forum-editor') as UniWebViewElement | null
-    // 监听键盘高度变化
-    // #ifndef WEB
+  onReady(() => {
+    forumEditorElement = uni.getElementById('forum-editor') as UniWebViewElement
+    // #ifdef WEB
+    window.addEventListener('message', handleWebMessage)
+    // #endif
+    // #ifdef APP
     keyboardEventID = uni.onKeyboardHeightChange((res: OnKeyboardHeightChangeCallbackResult) => {
       handleKeyboardHeightChange(res.height)
     })
@@ -66,9 +146,11 @@
   })
 
   onUnload(() => {
+    // #ifdef WEB
     forumEditorElement = null
-    // 页面卸载时移除监听键盘高度变化
-    // #ifndef WEB
+    window.removeEventListener('message', handleWebMessage)
+    // #endif
+    // #ifdef APP
     // 页面卸载时移除监听
     uni.offKeyboardHeightChange(keyboardEventID)
     // #endif
@@ -105,7 +187,7 @@
       </view>
     </view>
     <!-- 加载web端富文本编辑器 -->
-    <web-view id="forum-editor" class="flex-1 bg-white" src="/static/html/forum-editor.html" :webview-styles="{ progress: false }" :horizontalScrollBarAccess="false" :verticalScrollBarAccess="false" :bounces="false" :disable-user-select-menu="true" @message="handleEditorMessage" @error="handleEditorError" @load="handleEditorLoaded">
+    <web-view id="forum-editor" class="flex-1 bg-white" :src="webviewUrl" :webview-styles="{ progress: false }" :horizontalScrollBarAccess="false" :verticalScrollBarAccess="false" :bounces="false" :disable-user-select-menu="true" @message="handleEditorMessage" @error="handleEditorError" @load="handleEditorLoaded">
     </web-view>
     <view v-if="keyboardHeight > 0" :style="{ height: keyboardHeight + 'px' }"></view>
     <!-- #ifdef APP-ANDROID || APP-IOS -->

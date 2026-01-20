@@ -1,3 +1,6 @@
+## 本项目使用 directus CMS系统 作为服务载体
+[directus CMS系统](https://github.com/nangongpo/directus-project)
+
 ## background
 ```
 #fefefe
